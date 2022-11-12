@@ -4,7 +4,8 @@
     "package": "retr0.quickstack.mixin",
     "compatibilityLevel": "JAVA_17",
     "mixins": [
-        "MixinLootableContainerBlockEntity"
+        "MixinLootableContainerBlockEntity",
+        "MixinShapeContext"
     ],
     "client": [
         "MixinInventoryScreen"

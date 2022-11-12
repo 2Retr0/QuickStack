@@ -1,20 +1,23 @@
 package retr0.quickstack;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.client.render.debug.PathfindingDebugRenderer;
+import net.minecraft.entity.ai.pathing.Path;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
-import org.apache.logging.log4j.util.TriConsumer;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import retr0.quickstack.util.InventoryUtil;
+import retr0.quickstack.util.PathFinder;
 
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.PriorityQueue;
-import java.util.Queue;
+import java.util.*;
 
 public class QuickStack implements ModInitializer {
 	public static final String MOD_ID = "quickstack";
@@ -22,6 +25,10 @@ public class QuickStack implements ModInitializer {
 	// It is considered best practice to use your mod id as the logger's name.
 	// That way, it's clear which mod wrote info, warnings, and errors.
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+
+	public static BlockPos one = null;
+	public static BlockPos two = null;
+	public static Path path = null;
 
 	@Override
 	public void onInitialize() {
@@ -108,7 +115,7 @@ public class QuickStack implements ModInitializer {
 
 				// First Click //
 				// TODO: Use pathfinding or something.
-				var nearbyInventories = InventoryUtil.getNearbyInventories(server.getWorld(player.world.getRegistryKey()), player.getBlockPos(), 8);
+				var nearbyInventories = InventoryUtil.findNearbyInventories(server.getWorld(player.world.getRegistryKey()), player.getBlockPos(), 8);
 				QuickStack.LOGGER.info("Found Nearby Inventories: " + nearbyInventories);
 
 				// For each unique item in the player's inventory, create a corresponding priority queue in the
@@ -153,5 +160,21 @@ public class QuickStack implements ModInitializer {
 				}
 			});
 		}));
+
+		PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
+			var from = new Vec3d(pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5);
+			var to = new Vec3d(pos.getX() + 1.5, pos.getY() + 1.5, pos.getZ() + 0.5);
+
+			LOGGER.info("from: " + from + ", to: " + to);
+
+			new PathFinder(world, 8, pos).canMove(from, to, pos.up());
+		});
+
+		WorldRenderEvents.AFTER_ENTITIES.register(context -> {
+			var pos = context.camera().getPos();
+
+			if (path != null)
+				PathfindingDebugRenderer.drawPathLines(path, pos.getX(), pos.getY(), pos.getZ());
+		});
 	}
 }

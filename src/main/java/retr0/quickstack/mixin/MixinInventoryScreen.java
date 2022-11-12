@@ -24,7 +24,8 @@ import static retr0.quickstack.QuickStack.MOD_ID;
 
 @Mixin(InventoryScreen.class)
 public abstract class MixinInventoryScreen extends AbstractInventoryScreen<PlayerScreenHandler> {
-    @Shadow @Final private static Identifier RECIPE_BUTTON_TEXTURE;
+    @Unique private static final Identifier QUICK_STACK_BUTTON_TEXTURE =
+        new Identifier(MOD_ID, "textures/gui/quick_stack_button_alt.png");
 
     @Unique private ButtonWidget quickStackButton;
 
@@ -37,7 +38,7 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
             value = "INVOKE",
             target = "Lnet/minecraft/client/gui/screen/ingame/InventoryScreen;addDrawableChild(Lnet/minecraft/client/gui/Element;)Lnet/minecraft/client/gui/Element;"))
     public void addQuickStackButton(CallbackInfo ci) {
-        quickStackButton = new TexturedButtonWidget(x + 128, height / 2 - 22, 20, 18, 0, 0, 19, RECIPE_BUTTON_TEXTURE,
+        quickStackButton = new TexturedButtonWidget(x + 128, height / 2 - 22, 20, 18, 0, 0, 19, QUICK_STACK_BUTTON_TEXTURE,
             button -> {
                 QuickStack.LOGGER.info("Pressed QuickStack Button!");
 

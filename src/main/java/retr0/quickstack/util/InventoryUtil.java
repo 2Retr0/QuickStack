@@ -1,6 +1,7 @@
 package retr0.quickstack.util;
 
 import net.minecraft.block.entity.HopperBlockEntity;
+import net.minecraft.block.entity.LootableContainerBlockEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SidedInventory;
 import net.minecraft.item.Item;
@@ -10,13 +11,11 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import retr0.quickstack.mixin.MixinLootableContainerBlockEntity;
-import net.minecraft.block.entity.LootableContainerBlockEntity;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.IntStream;
 
 public class InventoryUtil {
     /**
@@ -27,7 +26,7 @@ public class InventoryUtil {
      *
      * @return A {@code List} containing the found nearby block entities as inventories.
      */
-    public static List<Inventory> getNearbyInventories(World world, BlockPos pos, int radius) {
+    public static List<Inventory> findNearbyInventories(World world, BlockPos pos, int radius) {
         var nearbyContainers = new ArrayList<Inventory>();
         var mutablePos = new BlockPos.Mutable();
         var cuboidBlockIterator = new CuboidBlockIterator(
@@ -37,6 +36,7 @@ public class InventoryUtil {
             mutablePos.set(cuboidBlockIterator.getX(), cuboidBlockIterator.getY(), cuboidBlockIterator.getZ());
             var blockEntity = world.getBlockEntity(mutablePos);
 
+            // Note: LootTableId is null if the container is player-placed or has been opened by a player.
             if (blockEntity instanceof MixinLootableContainerBlockEntity container
                 && !(blockEntity instanceof SidedInventory)
                 && container.getLootTableId() == null)
@@ -81,12 +81,18 @@ public class InventoryUtil {
      * @return The number of slots in {@code inventory} which are empty or have a non-full stack of {@code targetItem}.
      */
     public static int getAvailableSlots(Inventory inventory, Item targetItem) {
-        return (int) IntStream.range(0, inventory.size()).filter(slot -> {
+        var available = 0;
+
+        for (var slot = 0; slot < inventory.size(); ++slot) {
             var itemStack = inventory.getStack(slot);
 
-            return itemStack.equals(ItemStack.EMPTY) ||
-                (itemStack.getCount() < itemStack.getMaxCount() && itemStack.getItem().equals(targetItem));
-        }).count();
+            if (itemStack.equals(ItemStack.EMPTY) ||
+                (itemStack.getItem().equals(targetItem) && itemStack.getCount() < itemStack.getMaxCount()))
+            {
+                ++available;
+            }
+        }
+        return available;
     }
 
 
