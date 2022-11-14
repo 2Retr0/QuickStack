@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Set;
 
 public class InventoryUtil {
+    public record InventoryInfo (Inventory inventory, BlockPos blockPos) { }
+
     /**
      * Searches for nearby block entities whose class extends {@link LootableContainerBlockEntity} and <em>doesn't</em>
      * implement {@link SidedInventory} (i.e., 'Container' block entities such as chests, barrels, and dispensers).
@@ -26,11 +28,12 @@ public class InventoryUtil {
      *
      * @return A {@code List} containing the found nearby block entities as inventories.
      */
-    public static List<Inventory> findNearbyInventories(World world, BlockPos pos, int radius) {
-        var nearbyContainers = new ArrayList<Inventory>();
+    public static List<InventoryInfo> findNearbyInventories(World world, BlockPos pos, int radius) {
+        var nearbyContainers = new ArrayList<InventoryInfo>();
         var mutablePos = new BlockPos.Mutable();
         var cuboidBlockIterator = new CuboidBlockIterator(
-            pos.getX() - radius, pos.getY(), pos.getZ() - radius, pos.getX() + radius, pos.getY(), pos.getZ() + radius);
+            pos.getX() - radius, pos.getY() - radius, pos.getZ() - radius,
+            pos.getX() + radius, pos.getY() + radius, pos.getZ() + radius);
 
         while (cuboidBlockIterator.step()) {
             mutablePos.set(cuboidBlockIterator.getX(), cuboidBlockIterator.getY(), cuboidBlockIterator.getZ());
@@ -41,7 +44,7 @@ public class InventoryUtil {
                 && !(blockEntity instanceof SidedInventory)
                 && container.getLootTableId() == null)
             {
-                nearbyContainers.add((Inventory) container);
+                nearbyContainers.add(new InventoryInfo((Inventory) container, new BlockPos(mutablePos)));
             }
         }
         return nearbyContainers;
