@@ -1,0 +1,33 @@
+{
+    "targets": [ "swap", "final" ],
+    "passes": [
+        {
+            "name": "quickstack:block_outline",
+            "intarget": "final",
+            "outtarget": "swap"
+        },
+        {
+            "name": "quickstack:blur",
+            "intarget": "swap",
+            "outtarget": "final",
+            "uniforms": [
+                { "name": "BlurDir", "values": [ 1.0, 0.0 ] },
+                { "name": "Radius",  "values": [ 2.0 ] }
+            ]
+        },
+        {
+            "name": "quickstack:blur",
+            "intarget": "final",
+            "outtarget": "swap",
+            "uniforms": [
+                { "name": "BlurDir", "values": [ 0.0, 1.0 ] },
+                { "name": "Radius",  "values": [ 2.0 ] }
+            ]
+        },
+        {
+            "name": "blit",
+            "intarget": "swap",
+            "outtarget": "final"
+        }
+    ]
+}

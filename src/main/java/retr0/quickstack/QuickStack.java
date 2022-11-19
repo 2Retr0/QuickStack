@@ -1,11 +1,19 @@
 package retr0.quickstack;
 
+import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import ladysnake.satin.api.event.ShaderEffectRenderCallback;
+import ladysnake.satin.api.managed.ManagedFramebuffer;
+import ladysnake.satin.api.managed.ManagedShaderEffect;
+import ladysnake.satin.api.managed.ShaderEffectManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
+import net.fabricmc.fabric.api.event.client.player.ClientPickBlockApplyCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.client.render.debug.PathfindingDebugRenderer;
-import net.minecraft.entity.ai.pathing.Path;
+import net.minecraft.block.Blocks;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.item.Item;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -24,9 +32,10 @@ public class QuickStack implements ModInitializer {
     // That way, it's clear which mod wrote info, warnings, and errors.
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    public static BlockPos one = null;
-    public static BlockPos two = null;
-    public static Path path = null;
+    private boolean renderingBlit = false;
+    // literally the same as minecraft's blit, we are just checking that custom paths work
+    public static final ManagedShaderEffect sobelEffect = ShaderEffectManager.getInstance().manage(new Identifier(MOD_ID, "shaders/post/block_outline.json"));
+    public static final ManagedFramebuffer sobelBuffer = sobelEffect.getTarget("final");
 
     @Override
     public void onInitialize() {
@@ -182,18 +191,67 @@ public class QuickStack implements ModInitializer {
                 }
             }));
 
-        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
-            var from = new Vec3d(pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5);
-            var to = new Vec3d(pos.getX() + 1.5, pos.getY() + 1.5, pos.getZ() + 0.5);
+        ClientPickBlockApplyCallback.EVENT.register((player, result, stack) -> {
+            renderingBlit = !renderingBlit;
 
-            LOGGER.info("from: " + from + ", to: " + to);
+            return stack;
         });
 
-        WorldRenderEvents.AFTER_ENTITIES.register(context -> {
-            var pos = context.camera().getPos();
 
-            if (path != null)
-                PathfindingDebugRenderer.drawPathLines(path, pos.getX(), pos.getY(), pos.getZ());
+
+        // RenderLayer blockRenderLayer = sobelBuffer.getRenderLayer(RenderLayer.getTranslucent());
+        // RenderLayerHelper.registerBlockRenderLayer(blockRenderLayer);
+
+        WorldRenderEvents.LAST.register(context -> {
+            var blockRenderManager = MinecraftClient.getInstance().getBlockRenderManager();
+            var blockState = Blocks.DIRT.getDefaultState();
+            var bakedModel = blockRenderManager.getModel(blockState);
+
+            var vertexConsumerProvider = context.consumers();
+            var matrixStack = context.matrixStack();
+            var camera = context.camera();
+            var cameraPos = camera.getPos();
+
+            var blockPos = new BlockPos(300, 64, -150);
+
+            if (vertexConsumerProvider == null)
+                LOGGER.info("CONSUMER PROVIDER WAS NULL!");
+            else {
+                var vertexConsumer = vertexConsumerProvider.getBuffer(RenderLayer.getOutline(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE));
+
+                matrixStack.push();
+                matrixStack.translate(blockPos.getX() - cameraPos.x, blockPos.getY() - cameraPos.y, blockPos.getZ() - cameraPos.z);
+
+                blockRenderManager.getModelRenderer().render(matrixStack.peek(), vertexConsumer, blockState, bakedModel, 0.0f, 0.0f, 0.0f, 0x333333, 0xFFFFFF);
+                // blockRenderManager.renderBlockAsEntity(blockState, matrixStack, vertexConsumerProvider, 0xF000F0, OverlayTexture.DEFAULT_UV);
+
+                matrixStack.pop();
+            }
+            //     protected static final Target OUTLINE_TARGET = new Target("outline_target", () -> MinecraftClient.getInstance().worldRenderer.getEntityOutlinesFramebuffer().beginWrite(false), () -> MinecraftClient.getInstance().getFramebuffer().beginWrite(false));
+        });
+
+        var client = MinecraftClient.getInstance();
+
+        ShaderEffectRenderCallback.EVENT.register(tickDelta -> {
+            if (!renderingBlit) return;
+
+            RenderSystem.enableBlend();
+            sobelBuffer.draw(client.getWindow().getFramebufferWidth(), client.getWindow().getFramebufferHeight(), false);
+            RenderSystem.disableBlend();
+
+            // CANT DRAW SEPARATELY MAYBE BUFFER BUILDER THE CHEST GLOW THEN RENDER NORMALLY BEFORE RENDING BUILT FRAMEBUFFER
+            sobelEffect.render(tickDelta);
+
+            RenderSystem.enableBlend();
+            RenderSystem.blendFuncSeparate(
+                GlStateManager.SrcFactor.SRC_ALPHA,
+                GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SrcFactor.ZERO,
+                GlStateManager.DstFactor.ONE);
+            sobelBuffer.draw(client.getWindow().getFramebufferWidth(), client.getWindow().getFramebufferHeight(), false);
+            sobelBuffer.clear(MinecraftClient.IS_SYSTEM_MAC);
+            client.getFramebuffer().beginWrite(false);
+            RenderSystem.disableBlend();
         });
     }
 }

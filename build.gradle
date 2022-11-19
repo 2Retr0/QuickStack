@@ -10,6 +10,13 @@ archivesBaseName = project.archives_base_name
 version          = "${project.mod_version}+${project.minecraft_version}"
 group            = project.maven_group
 
+repositories {
+    maven {
+        name = 'Ladysnake Mods'
+        url = 'https://ladysnake.jfrog.io/artifactory/mods'
+    }
+}
+
 dependencies {
     // To change the versions see the gradle.properties file
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
@@ -18,6 +25,13 @@ dependencies {
 
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Satin API.
+    modImplementation "io.github.ladysnake:satin:${satin_version}"
+    // Include Satin as a Jar-in-Jar dependency (optional)
+    include "io.github.ladysnake:satin:${satin_version}"
+
+    compileOnly 'org.apiguardian:apiguardian-api:1.0.0'
 }
 
 processResources {

@@ -8,6 +8,7 @@
         "MixinShapeContext"
     ],
     "client": [
+        "MixinChestBlockEntityRenderer",
         "MixinInventoryScreen"
     ],
     "injectors": {
