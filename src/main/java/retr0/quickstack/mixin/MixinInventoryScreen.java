@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import retr0.quickstack.QuickStack;
+import retr0.quickstack.network.PacketRegistry;
 
 import static retr0.quickstack.QuickStack.MOD_ID;
 
@@ -40,7 +41,7 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
             button -> {
                 QuickStack.LOGGER.info("Pressed QuickStack Button!");
 
-                ClientPlayNetworking.send(new Identifier(MOD_ID, "request_quick_stack"), PacketByteBufs.empty());
+                ClientPlayNetworking.send(PacketRegistry.QUICK_STACK_REQUEST_ID, PacketByteBufs.empty());
             });
         this.addDrawableChild(quickStackButton);
     }

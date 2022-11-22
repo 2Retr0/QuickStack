@@ -8,10 +8,12 @@
         "MixinShapeContext"
     ],
     "client": [
+        "AccessorWorldRenderer",
         "MixinChestBlockEntityRenderer",
-        "MixinInventoryScreen"
+        "MixinInventoryScreen",
+        "MixinWorldRenderer"
     ],
     "injectors": {
         "defaultRequire": 1
-    }
+  }
 }

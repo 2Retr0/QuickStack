@@ -1,57 +1,15 @@
 package retr0.quickstack.util;
 
 import net.minecraft.block.entity.HopperBlockEntity;
-import net.minecraft.block.entity.LootableContainerBlockEntity;
 import net.minecraft.inventory.Inventory;
-import net.minecraft.inventory.SidedInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.CuboidBlockIterator;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.world.World;
-import retr0.quickstack.mixin.MixinLootableContainerBlockEntity;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
-public class InventoryUtil {
-    public record InventoryInfo (Inventory inventory, BlockPos blockPos) { }
-
-    /**
-     * Searches for nearby block entities whose class extends {@link LootableContainerBlockEntity} and <em>doesn't</em>
-     * implement {@link SidedInventory} (i.e., 'Container' block entities such as chests, barrels, and dispensers).
-     * Found inventories which still has an active loot table (e.g., unopened naturally-generated chests) are also
-     * disregarded.
-     *
-     * @return A {@code List} containing the found nearby block entities as inventories.
-     */
-    public static List<InventoryInfo> findNearbyInventories(World world, BlockPos pos, int radius) {
-        var nearbyContainers = new ArrayList<InventoryInfo>();
-        var mutablePos = new BlockPos.Mutable();
-        var cuboidBlockIterator = new CuboidBlockIterator(
-            pos.getX() - radius, pos.getY() - radius, pos.getZ() - radius,
-            pos.getX() + radius, pos.getY() + radius, pos.getZ() + radius);
-
-        while (cuboidBlockIterator.step()) {
-            mutablePos.set(cuboidBlockIterator.getX(), cuboidBlockIterator.getY(), cuboidBlockIterator.getZ());
-            var blockEntity = world.getBlockEntity(mutablePos);
-
-            // Note: LootTableId is null if the container is player-placed or has been opened by a player.
-            if (blockEntity instanceof MixinLootableContainerBlockEntity container
-                && !(blockEntity instanceof SidedInventory)
-                && container.getLootTableId() == null)
-            {
-                nearbyContainers.add(new InventoryInfo((Inventory) container, new BlockPos(mutablePos)));
-            }
-        }
-        return nearbyContainers;
-    }
-
-
-
+public final class InventoryUtil {
     /**
      * @see InventoryUtil#getUniqueItems(Inventory, int, int)
      */
@@ -109,19 +67,27 @@ public class InventoryUtil {
      * (e.g., if inventory {@code to} because full before the item stack was emptied).
      */
     public static boolean insert(Inventory from, Inventory to, int fromSlot) {
+        // TODO: NOT BEING MARKED DIRTY ENOUGH? DESYNC IN STACK COUNT OVER RESTARTS
         var targetStack = from.getStack(fromSlot);
 
         if (to == null || targetStack.equals(ItemStack.EMPTY) || getAvailableSlots(to, targetStack.getItem()) == 0)
             return false;
 
+        var originalCount = targetStack.getCount();
         var remainingStack = HopperBlockEntity.transfer(null, to, from.removeStack(fromSlot), null);
+
+        // Mark both inventories dirty if any items transferred.
+        if (remainingStack.getCount() != originalCount) {
+            to.markDirty();
+            from.markDirty();
+        }
         // Return true if the stack was fully transferred; otherwise, add the remaining stack back into inventory 'from'
         // and return false.
-        if (remainingStack.isEmpty()) {
-            to.markDirty();
-            return true;
-        }
+        if (remainingStack.isEmpty()) return true;
+
         from.setStack(fromSlot, remainingStack);
         return false;
     }
+
+    private InventoryUtil() { }
 }
