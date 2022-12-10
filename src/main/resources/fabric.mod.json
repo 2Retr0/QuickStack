@@ -24,7 +24,8 @@
         ]
     },
     "mixins": [
-        "quickstack.mixins.json"
+        "quickstack.mixins.json",
+        "quickstack.mixins.sodium.json"
     ],
 
     "depends": {

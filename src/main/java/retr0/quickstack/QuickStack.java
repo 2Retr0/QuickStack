@@ -1,8 +1,5 @@
 package retr0.quickstack;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
-import ladysnake.satin.api.event.ShaderEffectRenderCallback;
 import ladysnake.satin.api.managed.ManagedFramebuffer;
 import ladysnake.satin.api.managed.ManagedShaderEffect;
 import ladysnake.satin.api.managed.ShaderEffectManager;
@@ -12,7 +9,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import retr0.quickstack.event.BlockEntityRenderEvents;
 import retr0.quickstack.network.PacketRegistry;
 
 public class QuickStack implements ModInitializer {
@@ -22,7 +18,7 @@ public class QuickStack implements ModInitializer {
     // That way, it's clear which mod wrote info, warnings, and errors.
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    private boolean renderingBlit = false;
+    public static boolean renderingBlit = false;
     // literally the same as minecraft's blit, we are just checking that custom paths work
     public static final ManagedShaderEffect sobelEffect = ShaderEffectManager.getInstance().manage(new Identifier(MOD_ID, "shaders/post/block_outline.json"));
     public static final ManagedFramebuffer sobelBuffer = sobelEffect.getTarget("final");
@@ -98,11 +94,11 @@ public class QuickStack implements ModInitializer {
 //            sobelBuffer.beginWrite(false);
 //        });
 //
-        BlockEntityRenderEvents.END.register(() -> {
+        /*BlockEntityRenderEvents.END.register(() -> {
             RenderSystem.enableBlend();
             sobelBuffer.draw(client.getWindow().getFramebufferWidth(), client.getWindow().getFramebufferHeight(), false);
             RenderSystem.disableBlend();
-        });
+        });*/
 //
 //        WorldRenderEvents.BEFORE_BLOCK_OUTLINE.register(((context, hitResult) -> {
 //            client.getFramebuffer().beginWrite(false);
@@ -114,7 +110,7 @@ public class QuickStack implements ModInitializer {
 //            return true;
 //        }));
 
-        ShaderEffectRenderCallback.EVENT.register(tickDelta -> {
+        /*ShaderEffectRenderCallback.EVENT.register(tickDelta -> {
             if (!renderingBlit) return;
 
             // CANT DRAW SEPARATELY MAYBE BUFFER BUILDER THE CHEST GLOW THEN RENDER NORMALLY BEFORE RENDING BUILT FRAMEBUFFER
@@ -132,6 +128,6 @@ public class QuickStack implements ModInitializer {
             sobelBuffer.clear(MinecraftClient.IS_SYSTEM_MAC);
             client.getFramebuffer().beginWrite(false);
             RenderSystem.disableBlend();
-        });
+        });*/
     }
 }
