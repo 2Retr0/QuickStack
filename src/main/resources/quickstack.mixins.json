@@ -9,7 +9,7 @@
     ],
     "client": [
         "AccessorWorldRenderer",
-        "MixinChestBlockEntityRenderer",
+        "MixinHandledScreen",
         "MixinInventoryScreen",
         "MixinWorldRenderer"
     ],

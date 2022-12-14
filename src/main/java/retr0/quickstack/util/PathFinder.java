@@ -2,7 +2,6 @@ package retr0.quickstack.util;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Util;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -114,7 +113,6 @@ public class PathFinder {
             return false;
 
         //*** RAYCAST STEP ***//
-        MinecraftClient.getInstance().debugRenderer.gameTestDebugRenderer.addMarker(blockPos, 0xFFFFFF, ">O<", 5000);
         return hasLineOfSight(chunkCache, finalPos, end, IGNORED_BLOCKS);
     }
 
@@ -164,7 +162,7 @@ public class PathFinder {
     @SuppressWarnings("ConstantConditions")
     public static boolean hasLineOfSight(BlockView world, Vec3d start, Vec3d end, @Nullable Set<Block> ignoredBlocks) {
         //   * Note: 'blockHitFactory' lambda runs if any block has been hit.
-        //   * Note: 'missFactory' lambda runs if 'end' is reached and no collision with a non-ignored block occured.
+        //   * Note: 'missFactory' lambda runs if 'end' is reached and no collision with a non-ignored block occurred.
         return BlockView.raycast(start, end, new RaycastContext(start, end, COLLIDER, WATER, null),
             (raycastContext, blockPos) -> {
                 var blockState = world.getBlockState(blockPos);

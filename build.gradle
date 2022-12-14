@@ -33,23 +33,16 @@ dependencies {
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // Satin API.
-    modImplementation "io.github.ladysnake:satin:${satin_version}"
-    // Include Satin as a Jar-in-Jar dependency (optional)
-    include "io.github.ladysnake:satin:${satin_version}"
-
-    compileOnly 'org.apiguardian:apiguardian-api:1.0.0'
-
     // Dev Environment Dependencies
     modRuntimeOnly "maven.modrinth:modmenu:${project.mod_menu_version}"
 
     modCompileOnly "maven.modrinth:sodium:${project.sodium_version}"
-    modCompileOnly "maven.modrinth:iris:1.19.x-v1.3.1"
-
-    modRuntimeOnly "maven.modrinth:sodium:${project.sodium_version}"
-    modRuntimeOnly "maven.modrinth:iris:1.19.x-v1.3.1"
-    modRuntimeOnly "org.anarres:jcpp:1.4.14"
-    modRuntimeOnly 'org.joml:joml:1.10.4' // Sodium transitive dependency.
+//    modRuntimeOnly "maven.modrinth:sodium:${project.sodium_version}"
+//    modRuntimeOnly 'org.joml:joml:1.10.4'
+//
+//    modRuntimeOnly "maven.modrinth:iris:${project.iris_version}"
+//    modRuntimeOnly 'org.anarres:jcpp:1.4.14'
+//    modRuntimeOnly 'io.github.douira:glsl-transformer:1.0.1'
 }
 
 processResources {

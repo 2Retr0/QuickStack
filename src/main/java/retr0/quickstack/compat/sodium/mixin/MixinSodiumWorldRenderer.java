@@ -3,15 +3,31 @@ package retr0.quickstack.compat.sodium.mixin;
 import me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.BlockPos;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import retr0.quickstack.util.ColorManager;
 
 @Mixin(SodiumWorldRenderer.class)
 public class MixinSodiumWorldRenderer {
     private static OutlineVertexConsumerProvider outlineConsumerProvider;
+    private static Integer containerColor;
+
+    @SuppressWarnings("InvalidInjectorMethodSignature")
+    @ModifyVariable(
+        method = "renderTileEntities",
+        at = @At(
+            value = "INVOKE_ASSIGN",
+            target = "Lnet/minecraft/block/entity/BlockEntity;getPos()Lnet/minecraft/util/math/BlockPos;",
+            ordinal = 0))
+    private BlockPos getBlockPos(BlockPos original) {
+        containerColor = ColorManager.CONTAINER_COLOR_MAP.get(original);
+
+        return original;
+    }
 
     @ModifyVariable(
         // TODO: MAKE SURE THESE METHOD DESCRIPTORS WORK ON ANY SODIUM INSTANCE.
@@ -25,13 +41,13 @@ public class MixinSodiumWorldRenderer {
     private VertexConsumerProvider useOutlineConsumerCheck(
         VertexConsumerProvider original, MatrixStack matrices, BufferBuilderStorage bufferBuilders)
     {
-        outlineConsumerProvider = bufferBuilders.getOutlineVertexConsumers();
+        if (containerColor == null) return original;
 
-        var color = 0xFFFAAAAA;
-        var r = 0xFF & color >> 16;
-        var g = 0xFF & color >> 8;
-        var b = 0xFF & color;
-        outlineConsumerProvider.setColor(r, g, b, 255);
+        outlineConsumerProvider = bufferBuilders.getOutlineVertexConsumers();
+        var r = 0xFF & containerColor >> 16;
+        var g = 0xFF & containerColor >> 8;
+        var b = 0xFF & containerColor;
+        outlineConsumerProvider.setColor(r, g, b, 0xFF);
 
         return outlineConsumerProvider;
     }
@@ -46,8 +62,9 @@ public class MixinSodiumWorldRenderer {
         VertexConsumer vertexConsumer, VertexConsumerProvider.Immediate immediate, RenderLayer renderLayer,
         CallbackInfoReturnable<VertexConsumer> cir)
     {
-        var outlineConsumer = outlineConsumerProvider.getBuffer(renderLayer);
+        if (containerColor == null) return;
 
+        var outlineConsumer = outlineConsumerProvider.getBuffer(renderLayer);
         cir.setReturnValue(renderLayer.hasCrumbling() ?
             VertexConsumers.union(vertexConsumer, outlineConsumer) : outlineConsumer);
     }

@@ -1,12 +1,17 @@
 package retr0.quickstack.util;
 
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.entity.LootableContainerBlockEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SidedInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.CuboidBlockIterator;
 import net.minecraft.util.Pair;
 import net.minecraft.util.math.BlockPos;
@@ -15,50 +20,18 @@ import net.minecraft.world.World;
 import retr0.quickstack.QuickStack;
 import retr0.quickstack.mixin.MixinLootableContainerBlockEntity;
 import retr0.quickstack.network.PacketRegistry;
-import retr0.quickstack.network.QuickStackResponseS2CPacket;
+import retr0.quickstack.network.util.QuickStackResult;
 
 import java.util.*;
 
 public final class QuickStackUtil {
-    private record InventoryInfo(Inventory inventory, BlockPos blockPos, ItemStack icon) { }
-
-    private record ItemUsageMap(HashMap<Item, Pair<Integer, ItemStack>> itemUsageMap) {
-        public ItemUsageMap() { this(new HashMap<>()); }
-
-        public void updateUsage(Item key, int toAdd, ItemStack defaultIcon) {
-            if (itemUsageMap.containsKey(key)) {
-                var itemUsage = itemUsageMap.get(key);
-                itemUsage.setLeft(itemUsage.getLeft() + toAdd);
-            } else
-                itemUsageMap.put(key, new Pair<>(0, defaultIcon));
-        }
-
-
-
-        public List<Pair<ItemStack, ItemStack>> getTopNUsed(int n) {
-            var topUsedList = new ArrayList<Pair<ItemStack, ItemStack>>(n);
-            var topUsedMaxHeap = new PriorityQueue<Pair<Integer, Pair<ItemStack, ItemStack>>>(
-                Comparator.comparingInt(info -> -info.getLeft()));
-
-            itemUsageMap.forEach((item, usageInfo) -> topUsedMaxHeap.add(
-                new Pair<>(usageInfo.getLeft(), new Pair<>(item.getDefaultStack(), usageInfo.getRight()))));
-
-            for (var i = 0; i < n && !topUsedMaxHeap.isEmpty(); ++i)
-                topUsedList.add(topUsedMaxHeap.poll().getRight());
-
-            return topUsedList;
-        }
-    }
-
-    public record QuickStackInfo(int depositCount, int containerCount, List<Pair<ItemStack, ItemStack>> iconMappings) { }
-
     /**
      * Searches for nearby block entities whose class extends {@link LootableContainerBlockEntity} and <em>doesn't</em>
      * implement {@link SidedInventory} (i.e., 'Container' block entities such as chests, barrels, and dispensers).
      * Found inventories which still has an active loot table (e.g., unopened naturally-generated chests) are also
      * disregarded.
      *
-     * @return A {@code List} containing the found nearby block entities as inventories.
+     * @return A {@code List} containing the found block entities as {@link InventoryInfo}s.
      */
     public static List<InventoryInfo> findNearbyInventories(World world, BlockPos pos, int radius) {
         var nearbyContainers = new ArrayList<InventoryInfo>();
@@ -84,7 +57,10 @@ public final class QuickStackUtil {
     }
 
 
-
+    /**
+     * Initiates a quick stack operation for the specified player considering all chests within the specified radius
+     * for depositing.
+     */
     public static void quickStack(ServerPlayerEntity player, int radius) {
         var itemContainerMap = new HashMap<Item, Queue<InventoryInfo>>();
         var itemUsageMap = new ItemUsageMap();
@@ -118,10 +94,11 @@ public final class QuickStackUtil {
         // For each item in the player's *main* inventory try to insert the item into the head inventory of the
         // associated queue.
         var depositCount = 0;
-        var usedContainers = new HashSet<BlockPos>();
+        var containerUsageMap = new ContainerUsageMap();
         var pathFinder = new PathFinder(serverWorld, 8, player.getBlockPos());
 
-        for (var slot = 9; slot <= 35; ++slot) {
+        // TODO: Do not hard code inventory slot indices!
+        for (var slot = 9; slot < 36; ++slot) {
             var itemStack = playerInventory.getStack(slot);
             var containerQueue = itemContainerMap.get(itemStack.getItem());
 
@@ -148,7 +125,10 @@ public final class QuickStackUtil {
 
                 if (originalCount != itemStack.getCount()) {
                     depositCount += originalCount - itemStack.getCount();
-                    usedContainers.add(headInfo.blockPos);
+
+                    containerUsageMap.updateUsage(headInfo.blockPos, slot);
+
+                    // TODO: We need a map for blockpos to color and slots to color
 
                     // Update itemUsageMap with the deposited amount.
                     itemUsageMap.updateUsage(originalItem, depositCount, headInfo.icon);
@@ -160,14 +140,134 @@ public final class QuickStackUtil {
         // Note: In the case where an item is deposited into multiple containers, the container icon for the toast would
         //       be the highest priority container for the item (denoted by the entry in the item->container mappings)
         //       which is a good consequence of this overly-engineered design!
-        var containerCount = usedContainers.size();
+        var containerCount = containerUsageMap.size();
         if (depositCount > 0) {
             QuickStack.LOGGER.info(player.getName().getString() +
                 " quick stacked " + depositCount + " item" + (depositCount > 1 ? "s" : "") +
                 " into " + containerCount + " container" + (containerCount > 1 ? "s" : ""));
 
-            var quickStackInfo = new QuickStackInfo(depositCount, containerCount, itemUsageMap.getTopNUsed(3));
-            ServerPlayNetworking.send(player, PacketRegistry.QUICK_STACK_RESPONSE_ID, QuickStackResponseS2CPacket.create(quickStackInfo));
+            var quickStackInfo = new QuickStackResult(depositCount, containerCount, itemUsageMap.getTopNDeposited(3));
+            ServerPlayNetworking.send(player, PacketRegistry.QUICK_STACK_RESPONSE_ID, QuickStackResult.createByteBuf(quickStackInfo));
+            ServerPlayNetworking.send(player, PacketRegistry.QUICK_STACK_COLOR_RESULT_ID, containerUsageMap.createByteBuf(player));
+            playSound(player, containerCount);
+        }
+    }
+
+    private static void playSound(PlayerEntity player, int count) {
+        var emitPos = player.getEyePos().subtract(player.getRotationVector().multiply(3));
+
+        for (var i = 0; i < Math.min(2, count); ++i) {
+            DelayedCallbackManager.INSTANCE.scheduleCallback(() -> player.world.playSound(
+                null, emitPos.x, emitPos.y, emitPos.z, SoundEvents.BLOCK_BARREL_CLOSE, SoundCategory.BLOCKS,
+                0.5f, player.world.random.nextFloat() * 0.1f + 0.9f));
+        }
+    }
+
+
+
+    /**
+     * Record containing an inventory, the {@link BlockPos} of its respective block entity, and an {@link ItemStack}
+     * representing said block entity.
+     */
+    private record InventoryInfo(Inventory inventory, BlockPos blockPos, ItemStack icon) { }
+
+
+
+    /**
+     * Record representing information assigned to a container (i.e. block entity) containing the tint color for the
+     * block entity and the slots of the player inventory whose item stack has been transferred (completely or
+     * partially) to the container.
+     */
+    private static class ContainerUsageMap {
+        private final Map<BlockPos, List<Integer>> containerUsageMap = new HashMap<>();
+        private final Set<Integer> slotsUsed = new HashSet<>();
+
+        /**
+         * Adds a specified amount to the deposited total entry for an item key creating a new entry if needed.
+         * @param key The specified item key.
+         * @param toAdd The amount to add to the item entry's deposited total.
+         * @param defaultContainerIcon An {@link ItemStack}, representing the deposited container's icon, to bind to
+         *                             the entry if the entry does not yet exist.
+         */
+        public void updateUsage(BlockPos key, int slot) {
+            if (slotsUsed.contains(slot))
+                return;
+            else
+                slotsUsed.add(slot);
+
+            if (containerUsageMap.containsKey(key))
+                containerUsageMap.get(key).add(slot);
+            else
+                containerUsageMap.put(key, new ArrayList<>(List.of(slot)));
+        }
+
+
+
+        public int size() { return containerUsageMap.size(); }
+
+
+
+        public PacketByteBuf createByteBuf(ServerPlayerEntity player) {
+            var buf = PacketByteBufs.create();
+
+            buf.writeInt(player.currentScreenHandler.syncId);
+            buf.writeByte(containerUsageMap.size());
+            // TODO: CONURRENCY MODIFICATION
+            containerUsageMap.forEach(((blockPos, slots) -> {
+                buf.writeBlockPos(blockPos);   // Write container's BlockPos.
+                buf.writeByte(slots.size());   // Write container's associated slot list size.
+                slots.forEach(buf::writeByte); // Write container's associated slots.
+            }));
+
+            return buf;
+        }
+    }
+
+
+
+    /**
+     * Maps items to a "deposited total" along with an immutable icon for the container it was deposited into.
+     */
+    private static class ItemUsageMap {
+        private final Map<Item, Pair<Integer, ItemStack>> itemUsageMap = new HashMap<>();
+
+        /**
+         * Adds a specified amount to the deposited total entry for an item key creating a new entry if needed.
+         * @param key The specified item key.
+         * @param toAdd The amount to add to the item entry's deposited total.
+         * @param defaultContainerIcon An {@link ItemStack}, representing the deposited container's icon, to bind to
+         *                             the entry if the entry does not yet exist.
+         */
+        public void updateUsage(Item key, int toAdd, ItemStack defaultContainerIcon) {
+            if (itemUsageMap.containsKey(key)) {
+                var itemUsage = itemUsageMap.get(key);
+                itemUsage.setLeft(itemUsage.getLeft() + toAdd);
+            } else
+                itemUsageMap.put(key, new Pair<>(0, defaultContainerIcon));
+        }
+
+
+
+        /**
+         * @return A sorted {@code List} (in descending order) of the top {@code n} most-deposited items mapped to
+         * their entry's container icon.
+         */
+        public List<QuickStackResult.IconMapping> getTopNDeposited(int n) {
+            var topUsedList = new ArrayList<QuickStackResult.IconMapping>(n);
+            var topUsedQueue = new PriorityQueue<Pair<Integer, QuickStackResult.IconMapping>>(
+                Comparator.comparingInt(info -> -info.getLeft()));
+
+            // Create a priority queue of all icon mappings in the map sorted by deposited count.
+            itemUsageMap.forEach((item, usageInfo) -> {
+                topUsedQueue.add(new Pair<>(
+                    usageInfo.getLeft(),
+                    new QuickStackResult.IconMapping(item.getDefaultStack(), usageInfo.getRight())));
+            });
+
+            // Create a list containing the top 'n' mappings by polling the priority queue.
+            for (var i = 0; i < n && !topUsedQueue.isEmpty(); ++i)
+                topUsedList.add(topUsedQueue.poll().getRight());
+            return topUsedList;
         }
     }
 

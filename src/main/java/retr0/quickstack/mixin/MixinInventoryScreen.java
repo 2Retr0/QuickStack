@@ -63,6 +63,8 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
         };
     }
 
+
+
     public MixinInventoryScreen(PlayerScreenHandler screenHandler, PlayerInventory playerInventory, Text text) {
         super(screenHandler, playerInventory, text);
     }

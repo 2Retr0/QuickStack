@@ -5,10 +5,8 @@ import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.toast.Toast;
 import net.minecraft.client.toast.ToastManager;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
-import net.minecraft.util.Pair;
-import retr0.quickstack.util.QuickStackUtil.QuickStackInfo;
+import retr0.quickstack.network.util.QuickStackResult;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,23 +17,23 @@ public class QuickStackToast implements Toast {
     private static final long DURATION = 5000L;
     private static final Text HEADER = Text.translatable(MOD_ID + ".toast.header");
 
-    private final List<Pair<ItemStack, ItemStack>> iconMappings = new ArrayList<>();
+    private final List<QuickStackResult.IconMapping> iconMappings = new ArrayList<>();
 
     private int totalDepositCount = 0;
     private int totalContainerCount = 0;
     private long lastStartedTime;
     private boolean justUpdated;
 
-    public QuickStackToast(QuickStackInfo quickStackInfo) { addQuickStackInfo(quickStackInfo); }
+    public QuickStackToast(QuickStackResult result) { addQuickStackInfo(result); }
 
 
 
-    public static void show(ToastManager manager, QuickStackInfo quickStackInfo) {
+    public static void show(ToastManager manager, QuickStackResult result) {
         var quickStackToast = manager.getToast(QuickStackToast.class, TYPE);
         if (quickStackToast == null)
-            manager.add(new QuickStackToast(quickStackInfo));
+            manager.add(new QuickStackToast(result));
         else
-            quickStackToast.addQuickStackInfo(quickStackInfo);
+            quickStackToast.addQuickStackInfo(result);
     }
 
 
@@ -79,18 +77,18 @@ public class QuickStackToast implements Toast {
         matrixStack.push();
         matrixStack.scale(0.6f, 0.6f, 1.0f);
         RenderSystem.applyModelViewMatrix();
-        manager.getClient().getItemRenderer().renderInGui(iconMapping.getRight(), 3, 3); // Deposited item
+        manager.getClient().getItemRenderer().renderInGui(iconMapping.containerIcon(), 3, 3);
         matrixStack.pop();
 
         RenderSystem.applyModelViewMatrix();
-        manager.getClient().getItemRenderer().renderInGui(iconMapping.getLeft(), 8, 8); // Container
+        manager.getClient().getItemRenderer().renderInGui(iconMapping.itemIcon(), 8, 8);
 
         return startTime - lastStartedTime >= DURATION ? Toast.Visibility.HIDE : Toast.Visibility.SHOW;
     }
 
 
 
-    private void addQuickStackInfo(QuickStackInfo quickStackInfo) {
+    private void addQuickStackInfo(QuickStackResult quickStackInfo) {
         totalDepositCount += quickStackInfo.depositCount();
         totalContainerCount += quickStackInfo.containerCount();
         iconMappings.addAll(quickStackInfo.iconMappings());

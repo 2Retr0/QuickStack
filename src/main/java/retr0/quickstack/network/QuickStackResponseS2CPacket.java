@@ -1,54 +1,40 @@
 package retr0.quickstack.network;
 
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.util.Pair;
 import retr0.quickstack.QuickStack;
 import retr0.quickstack.QuickStackToast;
-import retr0.quickstack.util.QuickStackUtil;
+import retr0.quickstack.network.util.QuickStackResult;
 
 import java.util.ArrayList;
 
 public class QuickStackResponseS2CPacket {
     /**
-     * @return A {@link PacketByteBuf} containing two integers representing the {@link QuickStackUtil.QuickStackInfo}
-     * {@code depositCount} and {@code containerCount} as well as an additional integer denoting the {@code iconSet}
-     * size.
+     * Shows/updates a {@link QuickStackToast} instance containing the {@link QuickStackResult}'s information from the
+     * received packet.
      */
-    public static PacketByteBuf create(QuickStackUtil.QuickStackInfo quickStackInfo) {
-        var buf = PacketByteBufs.create();
-        buf.writeInt(quickStackInfo.depositCount());
-        buf.writeInt(quickStackInfo.containerCount());
-        buf.writeInt(quickStackInfo.iconMappings().size());
-        quickStackInfo.iconMappings().forEach(iconMapping -> {
-            QuickStack.LOGGER.info("Found!" + iconMapping);
-            buf.writeItemStack(iconMapping.getLeft());
-            buf.writeItemStack(iconMapping.getRight());
-        });
-
-        return buf;
-    }
-
-
-
     public static void receive(
         MinecraftClient client, ClientPlayNetworkHandler handler, PacketByteBuf buf, PacketSender responseSender)
     {
+        QuickStack.LOGGER.info("QuickStackResponse Received!");
         var depositCount = buf.readInt();
-        var containerCount = buf.readInt();
-        var iconMappings = new ArrayList<Pair<ItemStack, ItemStack>>();
+        var containerCount = buf.readByte();
+        var iconMappings = new ArrayList<QuickStackResult.IconMapping>();
 
-        var iconMappingsCount = buf.readInt();
+        var iconMappingsCount = buf.readByte();
         for (var i = 0; i < iconMappingsCount; ++i) {
-            iconMappings.add(new Pair<>(buf.readItemStack(), buf.readItemStack()));
+            var itemIcon = buf.readItemStack();
+            var containerIcon = buf.readItemStack();
+
+            iconMappings.add(new QuickStackResult.IconMapping(itemIcon, containerIcon));
         }
+        QuickStack.LOGGER.info("QuickStackResponse Finished Processing!");
 
         client.execute(() -> {
-            var quickStackInfo = new QuickStackUtil.QuickStackInfo(depositCount, containerCount, iconMappings);
+            QuickStack.LOGGER.info("QuickStackResponse Executed!");
+            var quickStackInfo = new QuickStackResult(depositCount, containerCount, iconMappings);
             QuickStackToast.show(client.getToastManager(), quickStackInfo);
         });
     }
