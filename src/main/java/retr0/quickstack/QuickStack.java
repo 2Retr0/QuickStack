@@ -24,7 +24,6 @@ public class QuickStack implements ModInitializer {
         LOGGER.info("Hello Fabric world!");
 
         PacketRegistry.registerC2SPackets();
-        PacketRegistry.registerS2CPackets();
 
         // CONFIG IDEAS:
         // * ALLOW HOTBAR QUICKSTACK

@@ -2,6 +2,8 @@ package retr0.quickstack.util;
 
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.block.ChestBlock;
+import net.minecraft.block.DoubleBlockProperties;
 import net.minecraft.block.entity.LootableContainerBlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.Inventory;
@@ -18,7 +20,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import retr0.quickstack.QuickStack;
-import retr0.quickstack.mixin.MixinLootableContainerBlockEntity;
+import retr0.quickstack.mixin.AccessorLootableContainerBlockEntity;
 import retr0.quickstack.network.PacketRegistry;
 import retr0.quickstack.network.util.QuickStackResult;
 
@@ -27,7 +29,7 @@ import java.util.*;
 public final class QuickStackUtil {
     /**
      * Searches for nearby block entities whose class extends {@link LootableContainerBlockEntity} and <em>doesn't</em>
-     * implement {@link SidedInventory} (i.e., 'Container' block entities such as chests, barrels, and dispensers).
+     * implement {@link SidedInventory} (e.g., 'Container' block entities such as chests, barrels, and dispensers).
      * Found inventories which still has an active loot table (e.g., unopened naturally-generated chests) are also
      * disregarded.
      *
@@ -35,6 +37,7 @@ public final class QuickStackUtil {
      */
     public static List<InventoryInfo> findNearbyInventories(World world, BlockPos pos, int radius) {
         var nearbyContainers = new ArrayList<InventoryInfo>();
+        var seenInventories = new HashSet<Inventory>();
         var mutablePos = new BlockPos.Mutable();
         var cuboidBlockIterator = new CuboidBlockIterator(
             pos.getX() - radius, pos.getY() - radius, pos.getZ() - radius,
@@ -45,12 +48,24 @@ public final class QuickStackUtil {
             var blockEntity = world.getBlockEntity(mutablePos);
 
             // Note: LootTableId is null if the container is player-placed or has been opened by a player.
-            if (blockEntity instanceof MixinLootableContainerBlockEntity container
+            if (blockEntity instanceof AccessorLootableContainerBlockEntity container
                 && !(blockEntity instanceof SidedInventory)
                 && container.getLootTableId() == null)
             {
-                var blockIcon = new ItemStack(world.getBlockState(mutablePos).getBlock().asItem());
-                nearbyContainers.add(new InventoryInfo((Inventory) container, new BlockPos(mutablePos), blockIcon));
+                var blockState = world.getBlockState(mutablePos);
+                var block = blockState.getBlock();
+
+                var inventory = (Inventory) container;
+                // For double chest blocks, we add the entire DoubleInventory and only consider the first chest of
+                // the two to compensate.
+                if (block instanceof ChestBlock chestBlock &&
+                    ChestBlock.getDoubleBlockType(blockState) == DoubleBlockProperties.Type.FIRST)
+                {
+                    inventory = ChestBlock.getInventory(chestBlock, blockState, world, mutablePos, false);
+                }
+
+                var blockIcon = new ItemStack(block.asItem());
+                nearbyContainers.add(new InventoryInfo(inventory, new BlockPos(mutablePos), blockIcon));
             }
         }
         return nearbyContainers;

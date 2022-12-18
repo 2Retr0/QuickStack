@@ -6,7 +6,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(LootableContainerBlockEntity.class)
-public interface MixinLootableContainerBlockEntity {
+public interface AccessorLootableContainerBlockEntity {
     @Accessor
     Identifier getLootTableId();
 }

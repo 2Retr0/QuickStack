@@ -24,7 +24,7 @@ public class MixinSodiumWorldRenderer {
             target = "Lnet/minecraft/block/entity/BlockEntity;getPos()Lnet/minecraft/util/math/BlockPos;",
             ordinal = 0))
     private BlockPos getBlockPos(BlockPos original) {
-        containerColor = ColorManager.CONTAINER_COLOR_MAP.get(original);
+        containerColor = ColorManager.BLOCK_ENTITY_COLOR_MAP.get(original);
 
         return original;
     }

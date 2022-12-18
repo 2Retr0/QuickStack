@@ -4,13 +4,14 @@
     "package": "retr0.quickstack.mixin",
     "compatibilityLevel": "JAVA_17",
     "mixins": [
-        "MixinLootableContainerBlockEntity",
+        "AccessorLootableContainerBlockEntity",
         "MixinShapeContext"
     ],
     "client": [
         "AccessorWorldRenderer",
         "MixinHandledScreen",
         "MixinInventoryScreen",
+        "MixinMultiPhase",
         "MixinWorldRenderer"
     ],
     "injectors": {

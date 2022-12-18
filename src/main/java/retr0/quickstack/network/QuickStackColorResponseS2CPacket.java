@@ -37,7 +37,7 @@ public class QuickStackColorResponseS2CPacket {
         client.execute(() -> {
             QuickStack.LOGGER.info("QuickStackColorResponse Executed!");
             // if (client.player.playerScreenHandler.syncId != screenHandlerSyncId) return;
-            ColorManager.addMappings(containerSlotMap);
+            ColorManager.addMappings(client, containerSlotMap);
         });
     }
 }
