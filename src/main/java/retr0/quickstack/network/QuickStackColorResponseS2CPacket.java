@@ -17,7 +17,6 @@ public class QuickStackColorResponseS2CPacket {
         MinecraftClient client, ClientPlayNetworkHandler handler, PacketByteBuf buf, PacketSender responseSender)
     {
         QuickStack.LOGGER.info("QuickStackColorResponse Received!");
-        var screenHandlerSyncId = buf.readInt();
         var depositedContainerCount = buf.readByte();
         var containerSlotMap = new HashMap<BlockPos, List<Integer>>();
 
@@ -36,7 +35,6 @@ public class QuickStackColorResponseS2CPacket {
 
         client.execute(() -> {
             QuickStack.LOGGER.info("QuickStackColorResponse Executed!");
-            // if (client.player.playerScreenHandler.syncId != screenHandlerSyncId) return;
             ColorManager.addMappings(client, containerSlotMap);
         });
     }

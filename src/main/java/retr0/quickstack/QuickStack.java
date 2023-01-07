@@ -19,7 +19,6 @@ public class QuickStack implements ModInitializer {
         // Proceed with mild caution.
 
         // TODO: BLOCK AND INVENTORY HIGHLIGHTING
-        // TODO: PATH FINDING FOR VALID QUICKSTACK
         // TODO: ITEM FAVORITEING
         LOGGER.info("Hello Fabric world!");
 

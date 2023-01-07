@@ -10,18 +10,25 @@ archivesBaseName = project.archives_base_name
 version          = "${project.mod_version}+${project.minecraft_version}"
 group            = project.maven_group
 
-repositories {
-    maven {
-        name = 'Ladysnake Mods'
-        url = 'https://ladysnake.jfrog.io/artifactory/mods'
+sourceSets {
+    testmod {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
     }
-    maven {
-        name = "Modrinth"
-        url = "https://api.modrinth.com/maven"
-        content {
-            includeGroup "maven.modrinth"
+}
+
+loom {
+    runs {
+        testmodClient {
+            client()
+            name = "Testmod Client"
+            source sourceSets.testmod
         }
     }
+}
+
+repositories {
+    maven { url 'https://api.modrinth.com/maven' }
 }
 
 dependencies {
@@ -43,11 +50,7 @@ dependencies {
     modRuntimeOnly "maven.modrinth:iris:${project.iris_version}"
     modRuntimeOnly 'org.anarres:jcpp:1.4.14'
     modRuntimeOnly 'io.github.douira:glsl-transformer:1.0.1'
-}
-
-loom {
-    // TODO: UNUSED REMOVE LATER.
-    accessWidenerPath = file("src/main/resources/${project.archives_base_name}.accesswidener")
+    testmodImplementation sourceSets.main.output
 }
 
 processResources {

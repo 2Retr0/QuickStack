@@ -13,7 +13,8 @@ public class QuickStackRequestC2SPacket {
      * Executes a quick stack operation for the sender player.
      */
     public static void receive(
-        MinecraftServer server, ServerPlayerEntity player, ServerPlayNetworkHandler handler, PacketByteBuf buf, PacketSender responseSender)
+        MinecraftServer server, ServerPlayerEntity player, ServerPlayNetworkHandler handler, PacketByteBuf buf,
+        PacketSender responseSender)
     {
         QuickStack.LOGGER.info("QuickStackRequest Received!");
         server.execute(() -> {

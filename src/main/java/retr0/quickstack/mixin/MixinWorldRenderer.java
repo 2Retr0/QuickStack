@@ -4,10 +4,11 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Matrix4f;
+import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -26,15 +27,19 @@ public abstract class MixinWorldRenderer {
     private static OutlineVertexConsumerProvider outlineConsumerProvider;
     private static Integer containerColor;
 
-
+    /* [ 23]    [  3]                         boolean  bl3                                                 YES       */
+    /* [ 24]    [  4]                         boolean  bl4                                               >>YES<<     */
+    /* [ 25]    [  0]  VertexConsumerProvider$Immediate  immediate                                           -       */
     @SuppressWarnings("InvalidInjectorMethodSignature")
     @ModifyVariable(
         method = "render",
         at = @At(value = "CONSTANT", args = "stringValue=blockentities", ordinal = 0, shift = At.Shift.BEFORE),
-        name = "bl4")
+        ordinal = 4)
     private boolean shouldRenderOutline(boolean original) {
-        return !ColorManager.finished;
+        return true;
     }
+
+
 
     @Inject(method = "render", at = @At(value = "CONSTANT", args = "stringValue=blockentities", ordinal = 0))
     private void renderModelOutlines(
@@ -61,6 +66,7 @@ public abstract class MixinWorldRenderer {
         });
     }
 
+    @Unique
     private VertexConsumer getOutlineConsumer(int color) {
         var outlineConsumerProvider = bufferBuilders.getOutlineVertexConsumers();
 
@@ -88,6 +94,9 @@ public abstract class MixinWorldRenderer {
 
 
 
+    /* [ 30]    [  0]                     BlockEntity  blockEntity                                         -         */
+    /* [ 31]    [  0]                        BlockPos  blockPos2                                           -         */
+    /* [ 32]    [  0]          VertexConsumerProvider  vertexConsumerProvider2                           >>YES<<     */
     @SuppressWarnings("InvalidInjectorMethodSignature")
     @ModifyVariable(
         method = "render",
@@ -95,7 +104,7 @@ public abstract class MixinWorldRenderer {
             value = "INVOKE",
             target = "Lnet/minecraft/client/util/math/MatrixStack;translate(DDD)V",
             ordinal = 0, shift = At.Shift.AFTER),
-        name = "vertexConsumerProvider2")
+        ordinal = 0)
     private VertexConsumerProvider useOutlineConsumerCheck(VertexConsumerProvider original) {
         if (containerColor == null) return original;
 

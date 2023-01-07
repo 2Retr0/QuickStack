@@ -83,10 +83,12 @@ public final class InventoryUtil {
         }
         // Return true if the stack was fully transferred; otherwise, add the remaining stack back into inventory 'from'
         // and return false.
-        if (remainingStack.isEmpty()) return true;
-
-        from.setStack(fromSlot, remainingStack);
-        return false;
+        if (remainingStack.isEmpty())
+            return true;
+        else {
+            from.setStack(fromSlot, remainingStack);
+            return false;
+        }
     }
 
     private InventoryUtil() { }

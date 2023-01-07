@@ -1,12 +1,15 @@
 {
     "required": true,
     "minVersion": "0.8",
-    "package": "retr0.quickstack.compat.sodium.mixin",
+    "package": "retr0.itemfavoriting.mixin",
     "compatibilityLevel": "JAVA_17",
     "injectors": {
         "defaultRequire": 1
     },
+    "client": [
+        "MixinHandledScreen"
+    ],
     "mixins": [
-        "MixinSodiumWorldRenderer"
+        "MixinServerPlayerEntity"
     ]
 }

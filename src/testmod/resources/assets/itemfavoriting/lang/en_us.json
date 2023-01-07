@@ -1,0 +1,12 @@
+{
+    "carrotconfigtest.toast.header": "Exploring Biome",
+    "carrotconfigtest.carrotconfig.title": "carrotconfigtest Configuration!",
+
+    "carrotconfigtest.carrotconfig.roundedIconBackground": "Use Rounded Icon Background",
+
+    "carrotconfigtest.carrotconfig.maxInhabitedTime": "Max Chunk Inhabited Time",
+    "carrotconfigtest.carrotconfig.maxInhabitedTime.tooltip": "Denotes the maximum time (in minutes) a chunk can have a player in its vicinity before biome toasts are prevented from showing within its borders.\n\n(§oHigher values may be preferable for high-player worlds!§r§r)",
+
+    "carrotconfigtest.carrotconfig.toastCooldownTime": "Toast Cooldown Time",
+    "carrotconfigtest.carrotconfig.toastCooldownTime.tooltip": "Denotes the time (in minutes) a biome toast will be prevented from showing again (§oper biome§r)."
+}

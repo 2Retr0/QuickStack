@@ -2,8 +2,8 @@
     "quickstack.toast.header": "Deposit Successful!",
     "quickstack.toast.description": "%1$s %2$s \u2192 %3$s %4$s",
 
-    "quickstack.dict.item.singular": "item",
+    "quickstack.dict.item.singular": "item(s)",
     "quickstack.dict.item.plural": "items",
-    "quickstack.dict.chest.singular": "chest",
+    "quickstack.dict.chest.singular": "chest(s)",
     "quickstack.dict.chest.plural": "chests"
 }

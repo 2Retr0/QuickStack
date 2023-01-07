@@ -5,13 +5,14 @@ import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import retr0.quickstack.util.ColorManager;
 
-@Mixin(SodiumWorldRenderer.class)
+@Pseudo @Mixin(SodiumWorldRenderer.class)
 public class MixinSodiumWorldRenderer {
     private static OutlineVertexConsumerProvider outlineConsumerProvider;
     private static Integer containerColor;
@@ -29,6 +30,11 @@ public class MixinSodiumWorldRenderer {
         return original;
     }
 
+
+
+    /* [ 16]    [  0]                     BlockEntity  blockEntity                                         -         */
+    /* [ 17]    [  0]                        BlockPos  pos                                                 -         */
+    /* [ 18]    [  0]          VertexConsumerProvider  consumer                                          >>YES<<     */
     @ModifyVariable(
         // TODO: MAKE SURE THESE METHOD DESCRIPTORS WORK ON ANY SODIUM INSTANCE.
         method = "renderTileEntities",
@@ -36,8 +42,7 @@ public class MixinSodiumWorldRenderer {
             value = "INVOKE",
             target = "Lit/unimi/dsi/fastutil/longs/Long2ObjectMap;get(J)Ljava/lang/Object;",
             shift = At.Shift.AFTER),
-        name = "consumer",
-        remap = false)
+        ordinal = 0, remap = false)
     private VertexConsumerProvider useOutlineConsumerCheck(
         VertexConsumerProvider original, MatrixStack matrices, BufferBuilderStorage bufferBuilders)
     {

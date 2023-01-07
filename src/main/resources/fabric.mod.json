@@ -19,18 +19,13 @@
 
     "environment": "*",
     "entrypoints": {
-        "main": [
-            "retr0.quickstack.QuickStack"
-        ],
-        "client": [
-            "retr0.quickstack.QuickStackClient"
-        ]
+        "main":   [ "retr0.quickstack.QuickStack" ],
+        "client": [ "retr0.quickstack.QuickStackClient" ]
     },
     "mixins": [
         "quickstack.mixins.json",
         "quickstack.mixins.sodium.json"
     ],
-    "accessWidener" : "quickstack.accesswidener",
 
     "depends": {
         "fabricloader": ">=0.14.9",

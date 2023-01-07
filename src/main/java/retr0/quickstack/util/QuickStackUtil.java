@@ -8,8 +8,7 @@ import net.minecraft.block.entity.LootableContainerBlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SidedInventory;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
+import net.minecraft.item.*;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
@@ -37,7 +36,6 @@ public final class QuickStackUtil {
      */
     public static List<InventoryInfo> findNearbyInventories(World world, BlockPos pos, int radius) {
         var nearbyContainers = new ArrayList<InventoryInfo>();
-        var seenInventories = new HashSet<Inventory>();
         var mutablePos = new BlockPos.Mutable();
         var cuboidBlockIterator = new CuboidBlockIterator(
             pos.getX() - radius, pos.getY() - radius, pos.getZ() - radius,
@@ -54,22 +52,22 @@ public final class QuickStackUtil {
             {
                 var blockState = world.getBlockState(mutablePos);
                 var block = blockState.getBlock();
-
                 var inventory = (Inventory) container;
-                // For double chest blocks, we add the entire DoubleInventory and only consider the first chest of
-                // the two to compensate.
-                if (block instanceof ChestBlock chestBlock &&
-                    ChestBlock.getDoubleBlockType(blockState) == DoubleBlockProperties.Type.FIRST)
-                {
-                    inventory = ChestBlock.getInventory(chestBlock, blockState, world, mutablePos, false);
-                }
-
                 var blockIcon = new ItemStack(block.asItem());
+
+                // We add the inventory/double inventory for chest blocks, so long as the chest is not the "second
+                // chest" of a double chest (to prevent double counting).
+                if (block instanceof ChestBlock chestBlock) {
+                    if (ChestBlock.getDoubleBlockType(blockState) != DoubleBlockProperties.Type.SECOND)
+                        inventory = ChestBlock.getInventory(chestBlock, blockState, world, mutablePos, false);
+                    else continue;
+                }
                 nearbyContainers.add(new InventoryInfo(inventory, new BlockPos(mutablePos), blockIcon));
             }
         }
         return nearbyContainers;
     }
+
 
 
     /**
@@ -90,8 +88,21 @@ public final class QuickStackUtil {
         // container map prioritizing the inventory with the most free slots (with respect to the item).
         var uniquePlayerItems = InventoryUtil.getUniqueItems(playerInventory, 9, 35);
         QuickStack.LOGGER.info("Found Player Unique Items: " + uniquePlayerItems);
-        uniquePlayerItems.forEach(item -> itemContainerMap.put(item, new PriorityQueue<>(
-            Comparator.comparingInt(inventoryInfo -> -InventoryUtil.getAvailableSlots(inventoryInfo.inventory(), item)))));
+        uniquePlayerItems.forEach(item -> {
+            if (!(item instanceof BundleItem || item instanceof ToolItem || item instanceof ArrowItem ||
+                item.isFood() || item instanceof PotionItem || item instanceof BucketItem || item.getTranslationKey().equalsIgnoreCase("block.minecraft.torch") ||
+                item instanceof RangedWeaponItem || item instanceof CompassItem))
+            {
+                itemContainerMap.put(item, new PriorityQueue<>(
+                    Comparator.comparingInt(inventoryInfo -> -InventoryUtil.getAvailableSlots(inventoryInfo.inventory(), item))));
+            }
+            QuickStack.LOGGER.info(item.getTranslationKey());
+        });
+
+        if (itemContainerMap.isEmpty()) {
+            QuickStack.LOGGER.info("Nothing found!");
+            return;
+        }
 
         // For each nearby inventory, add the inventory to all queues in the container map which correspond to
         // an item which exists in said inventory.
@@ -100,7 +111,10 @@ public final class QuickStackUtil {
             var intersection = InventoryUtil.getUniqueItems(inventoryInfo.inventory());
 
             intersection.retainAll(uniquePlayerItems);
-            intersection.forEach(item -> itemContainerMap.get(item).add(inventoryInfo));
+            intersection.forEach(item -> {
+                if (itemContainerMap.containsKey(item))
+                    itemContainerMap.get(item).add(inventoryInfo);
+            });
         });
         QuickStack.LOGGER.info("Mappings: " + itemContainerMap);
 
@@ -225,7 +239,6 @@ public final class QuickStackUtil {
         public PacketByteBuf createByteBuf(ServerPlayerEntity player) {
             var buf = PacketByteBufs.create();
 
-            buf.writeInt(player.currentScreenHandler.syncId);
             buf.writeByte(containerUsageMap.size());
             // TODO: CONURRENCY MODIFICATION
             containerUsageMap.forEach(((blockPos, slots) -> {

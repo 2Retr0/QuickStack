@@ -108,7 +108,7 @@ public class PathFinder {
         }
 
         var finalPos = Vec3d.ofCenter(blockPos);
-        // Distance check TODO: TEST
+        // TODO: Distance check!!!
         if (finalPos.distanceTo(end) + distanceTravelled > MathHelper.square(distance))
             return false;
 
