@@ -17,8 +17,6 @@ public final class InventoryUtil {
         return getUniqueItems(inventory, 0, inventory.size() - 1);
     }
 
-
-
     /**
      * @return A {@code Set} containing all unique (NBT-disregarded) items in {@code inventory} within the slot bounds.
      */
@@ -47,7 +45,7 @@ public final class InventoryUtil {
         for (var slot = 0; slot < inventory.size(); ++slot) {
             var itemStack = inventory.getStack(slot);
 
-            if (itemStack.equals(ItemStack.EMPTY) ||
+            if (itemStack.isEmpty() ||
                 (itemStack.getItem().equals(targetItem) && itemStack.getCount() < itemStack.getMaxCount()))
             {
                 ++available;

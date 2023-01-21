@@ -5,8 +5,8 @@ import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.toast.Toast;
 import net.minecraft.client.toast.ToastManager;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
-import retr0.quickstack.network.util.QuickStackResult;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,26 +14,28 @@ import java.util.List;
 import static retr0.quickstack.QuickStack.MOD_ID;
 
 public class QuickStackToast implements Toast {
-    private static final long DURATION = 5000L;
+    private static final long DURATION_MS = 5000L;
     private static final Text HEADER = Text.translatable(MOD_ID + ".toast.header");
 
-    private final List<QuickStackResult.IconMapping> iconMappings = new ArrayList<>();
+    private final List<IconPair> iconMappings = new ArrayList<>();
 
     private int totalDepositCount = 0;
     private int totalContainerCount = 0;
-    private long lastStartedTime;
+    private long lastStartedTimeMs;
     private boolean justUpdated;
 
-    public QuickStackToast(QuickStackResult result) { addQuickStackInfo(result); }
+    public QuickStackToast(int depositCount, int containerCount, List<IconPair> iconMappings) {
+        addDepositResult(depositCount, containerCount, iconMappings);
+    }
 
 
 
-    public static void show(ToastManager manager, QuickStackResult result) {
+    public static void show(ToastManager manager, int depositCount, int containerCount, List<IconPair> iconMappings) {
         var quickStackToast = manager.getToast(QuickStackToast.class, TYPE);
         if (quickStackToast == null)
-            manager.add(new QuickStackToast(result));
+            manager.add(new QuickStackToast(depositCount, containerCount, iconMappings));
         else
-            quickStackToast.addQuickStackInfo(result);
+            quickStackToast.addDepositResult(depositCount, containerCount, iconMappings);
     }
 
 
@@ -55,7 +57,7 @@ public class QuickStackToast implements Toast {
     @Override
     public Toast.Visibility draw(MatrixStack matrices, ToastManager manager, long startTime) {
         if (justUpdated) {
-            lastStartedTime = startTime;
+            lastStartedTimeMs = startTime;
             justUpdated = false;
         }
 
@@ -70,7 +72,7 @@ public class QuickStackToast implements Toast {
         manager.getClient().textRenderer.draw(matrices, HEADER, 30.0f, 7.0f, 0xFF500050);
         manager.getClient().textRenderer.draw(matrices, description, 30.0f, 18.0f, 0xFF000000);
         var iconMapping = iconMappings.get(
-            (int)(startTime / Math.max(1L, DURATION / iconMappings.size()) % iconMappings.size()));
+            (int)(startTime / Math.max(1L, DURATION_MS / iconMappings.size()) % iconMappings.size()));
 
         var matrixStack = RenderSystem.getModelViewStack();
 
@@ -83,16 +85,22 @@ public class QuickStackToast implements Toast {
         RenderSystem.applyModelViewMatrix();
         manager.getClient().getItemRenderer().renderInGui(iconMapping.itemIcon(), 8, 8);
 
-        return startTime - lastStartedTime >= DURATION ? Toast.Visibility.HIDE : Toast.Visibility.SHOW;
+        return startTime - lastStartedTimeMs >= DURATION_MS ? Toast.Visibility.HIDE : Toast.Visibility.SHOW;
     }
 
 
 
-    private void addQuickStackInfo(QuickStackResult quickStackInfo) {
-        totalDepositCount += quickStackInfo.depositCount();
-        totalContainerCount += quickStackInfo.containerCount();
-        iconMappings.addAll(quickStackInfo.iconMappings());
+    private void addDepositResult(int depositCount, int containerCount, List<IconPair> iconMappings) {
+        this.totalDepositCount += depositCount;
+        this.totalContainerCount += containerCount;
+        this.iconMappings.addAll(iconMappings);
 
         justUpdated = true;
     }
+
+    /**
+     * Record containing two {@link ItemStack}s, representing a deposited item's icon and its deposited container's icon
+     * respectively.
+     */
+    public record IconPair(ItemStack itemIcon, ItemStack containerIcon) { }
 }

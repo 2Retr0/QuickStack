@@ -1,22 +1,48 @@
 package retr0.quickstack.compat.sodium.mixin;
 
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import me.jellysquid.mods.sodium.client.render.SodiumWorldRenderer;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import retr0.quickstack.util.ColorManager;
+import retr0.quickstack.QuickStackClient;
+import retr0.quickstack.util.OutlineRenderManager;
+import retr0.quickstack.util.RenderUtil;
+
+import java.util.SortedSet;
 
 @Pseudo @Mixin(SodiumWorldRenderer.class)
-public class MixinSodiumWorldRenderer {
-    private static OutlineVertexConsumerProvider outlineConsumerProvider;
-    private static Integer containerColor;
+public abstract class MixinSodiumWorldRenderer {
+    @Unique private static final OutlineRenderManager outlineManager =
+        QuickStackClient.getInstance().getOutlineRenderManager();
 
+    @Unique private static OutlineVertexConsumerProvider outlineProvider;
+    @Unique private static Integer containerColor;
+
+    /**
+     * Caches the outline vertex consumer provider.
+     */
+    @Inject(method = "renderTileEntities", at = @At("HEAD"))
+    private void cacheOutlineProvider(
+        MatrixStack matrices, BufferBuilderStorage bufferBuilders, Long2ObjectMap<SortedSet<BlockBreakingInfo>> progress,
+        Camera camera, float tickDelta, CallbackInfo ci)
+    {
+        outlineProvider = bufferBuilders.getOutlineVertexConsumers();
+    }
+
+
+
+    /**
+     * Caches the container color (if it exists) for the current block entity.
+     */
     @SuppressWarnings("InvalidInjectorMethodSignature")
     @ModifyVariable(
         method = "renderTileEntities",
@@ -24,52 +50,53 @@ public class MixinSodiumWorldRenderer {
             value = "INVOKE_ASSIGN",
             target = "Lnet/minecraft/block/entity/BlockEntity;getPos()Lnet/minecraft/util/math/BlockPos;",
             ordinal = 0))
-    private BlockPos getBlockPos(BlockPos original) {
-        containerColor = ColorManager.BLOCK_ENTITY_COLOR_MAP.get(original);
+    private BlockPos cacheContainerColor(BlockPos original) {
+        if (outlineManager.isRendering())
+            containerColor = outlineManager.blockEntityColorMap.get(original);
 
-        return original;
+        return original; // No actual modification.
     }
 
 
 
+    /**
+     * Switches the {@link VertexConsumerProvider} used for the current block entity to the outline provider.
+     */
     /* [ 16]    [  0]                     BlockEntity  blockEntity                                         -         */
     /* [ 17]    [  0]                        BlockPos  pos                                                 -         */
     /* [ 18]    [  0]          VertexConsumerProvider  consumer                                          >>YES<<     */
     @ModifyVariable(
-        // TODO: MAKE SURE THESE METHOD DESCRIPTORS WORK ON ANY SODIUM INSTANCE.
         method = "renderTileEntities",
         at = @At(
             value = "INVOKE",
             target = "Lit/unimi/dsi/fastutil/longs/Long2ObjectMap;get(J)Ljava/lang/Object;",
             shift = At.Shift.AFTER),
         ordinal = 0, remap = false)
-    private VertexConsumerProvider useOutlineConsumerCheck(
+    private VertexConsumerProvider useOutlineProvider(
         VertexConsumerProvider original, MatrixStack matrices, BufferBuilderStorage bufferBuilders)
     {
-        if (containerColor == null) return original;
+        if (!outlineManager.isRendering() || containerColor == null) return original;
 
-        outlineConsumerProvider = bufferBuilders.getOutlineVertexConsumers();
-        var r = 0xFF & containerColor >> 16;
-        var g = 0xFF & containerColor >> 8;
-        var b = 0xFF & containerColor;
-        outlineConsumerProvider.setColor(r, g, b, 0xFF);
-
-        return outlineConsumerProvider;
+        return RenderUtil.modifyOutlineProviderColor(outlineProvider, containerColor);
     }
 
 
+
+    /**
+     * Allows animated block entities in the outline render layer buffer to render with the block crumbling overlay.
+     */
     @Inject(
         method = "lambda$renderTileEntities$0",
         at = @At("RETURN"),
         cancellable = true,
         remap = false)
-    private static void test(
+    private static void unionOutlineConsumer(
         VertexConsumer vertexConsumer, VertexConsumerProvider.Immediate immediate, RenderLayer renderLayer,
         CallbackInfoReturnable<VertexConsumer> cir)
     {
-        if (containerColor == null) return;
+        if (!outlineManager.isRendering() || containerColor == null) return;
 
-        var outlineConsumer = outlineConsumerProvider.getBuffer(renderLayer);
+        var outlineConsumer = outlineProvider.getBuffer(renderLayer);
         cir.setReturnValue(renderLayer.hasCrumbling() ?
             VertexConsumers.union(vertexConsumer, outlineConsumer) : outlineConsumer);
     }

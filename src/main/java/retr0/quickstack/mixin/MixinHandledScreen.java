@@ -6,14 +6,19 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
-import retr0.quickstack.util.ColorManager;
+import retr0.quickstack.QuickStackClient;
+import retr0.quickstack.util.OutlineRenderManager;
 
 @Mixin(HandledScreen.class)
-public class MixinHandledScreen extends Screen {
+public abstract class MixinHandledScreen extends Screen {
+    @Unique private static final OutlineRenderManager outlineManager =
+        QuickStackClient.getInstance().getOutlineRenderManager();
+
     @Inject(
         method = "render",
         at = @At(
@@ -25,8 +30,8 @@ public class MixinHandledScreen extends Screen {
         MatrixStack matrices, int mouseX, int mouseY, float delta, CallbackInfo ci, int i, int j,
         MatrixStack matrixStack, int k, Slot slot)
     {
-        Integer slotColor = ColorManager.SLOT_COLOR_MAP.get(k);
-        if (slotColor == null) return;
+        var slotColor = outlineManager.slotColorMap.get(slot.getIndex());
+        if (slotColor == null || slot.inventory != client.player.getInventory()) return;
 
         var slotShadowColor = 0xFF000000 | slotColor;
         var slotHighlightColor = 0xFF000000 | ~(0x7F7F7F7F & (~slotColor >> 1));

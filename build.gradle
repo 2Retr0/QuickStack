@@ -10,25 +10,12 @@ archivesBaseName = project.archives_base_name
 version          = "${project.mod_version}+${project.minecraft_version}"
 group            = project.maven_group
 
-sourceSets {
-    testmod {
-        compileClasspath += main.compileClasspath
-        runtimeClasspath += main.runtimeClasspath
-    }
-}
-
-loom {
-    runs {
-        testmodClient {
-            client()
-            name = "Testmod Client"
-            source sourceSets.testmod
-        }
-    }
-}
-
 repositories {
     maven { url 'https://api.modrinth.com/maven' }
+    maven {
+        url "https://jitpack.io"
+        content { includeGroup "com.github.2Retr0" }
+    }
 }
 
 dependencies {
@@ -49,8 +36,11 @@ dependencies {
 
     modRuntimeOnly "maven.modrinth:iris:${project.iris_version}"
     modRuntimeOnly 'org.anarres:jcpp:1.4.14'
-    modRuntimeOnly 'io.github.douira:glsl-transformer:1.0.1'
-    testmodImplementation sourceSets.main.output
+    modRuntimeOnly 'io.github.douira:glsl-transformer:2.0.0-pre8'
+
+    modCompileOnly "com.github.2Retr0:itemfavorites:1.19-SNAPSHOT"
+    modImplementation "com.github.2Retr0:itemfavorites:1.19-SNAPSHOT"
+    include "com.github.2Retr0:itemfavorites:1.19-SNAPSHOT"
 }
 
 processResources {

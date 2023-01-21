@@ -1,7 +1,5 @@
 package retr0.quickstack.mixin;
 
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.gui.screen.ingame.AbstractInventoryScreen;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -17,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import retr0.quickstack.QuickStack;
-import retr0.quickstack.network.PacketRegistry;
+import retr0.quickstack.network.DepositRequestC2SPacket;
 
 import static retr0.quickstack.QuickStack.MOD_ID;
 
@@ -41,7 +39,7 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
             button -> {
                 QuickStack.LOGGER.info("Pressed QuickStack Button!");
 
-                ClientPlayNetworking.send(PacketRegistry.QUICK_STACK_REQUEST_ID, PacketByteBufs.empty());
+                DepositRequestC2SPacket.send();
             });
         this.addDrawableChild(quickStackButton);
     }
@@ -59,11 +57,9 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
     public ButtonWidget.PressAction updateQuickStackButtonPosition(ButtonWidget.PressAction original) {
         return button -> {
             original.onPress(button);
-            ((TexturedButtonWidget)quickStackButton).setPos(x + 128, height / 2 - 22);
+            quickStackButton.setPos(x + 128, height / 2 - 22);
         };
     }
-
-
 
     public MixinInventoryScreen(PlayerScreenHandler screenHandler, PlayerInventory playerInventory, Text text) {
         super(screenHandler, playerInventory, text);

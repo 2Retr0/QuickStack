@@ -28,13 +28,15 @@ public class PathFinder {
     private final BiFunction<Vec3d, Vec3d, Boolean> nearLineOfSightCached;
 
     // Set of blocks which are occupied in the center, but should be ignored for line-of-sight calculations.
-    private static final Set<Block> IGNORED_BLOCKS = Set.of(
-        Blocks.CHAIN, Blocks.END_ROD, Blocks.LANTERN, Blocks.LIGHTNING_ROD);
+    private static final Set<Block> IGNORED_BLOCKS =
+        Set.of(Blocks.CHAIN, Blocks.END_ROD, Blocks.LANTERN, Blocks.LIGHTNING_ROD);
 
     public PathFinder(World world, int i, BlockPos from) {
         chunkCache = new ChunkCache(world, from.add(-i, -i, -i), from.add(i, i, i));
         nearLineOfSightCached = Util.memoize((start, end) -> hasNearLineOfSight(start, end, i));
     }
+
+
 
     /**
      * Changes the probabilities for the fall distance at which farmland will break as such:
@@ -55,7 +57,7 @@ public class PathFinder {
         return nearLineOfSightCached.apply(start, end);
     }
 
-    private boolean hasNearLineOfSight(Vec3d start, Vec3d end, int distance) {
+    private boolean hasNearLineOfSight(Vec3d start, Vec3d end, int radius) {
         var blockPos = new BlockPos(start.x, start.y, start.z);
         var directionToEnd = start.subtract(end); // Vector from start->end centered about the origin.
         QuickStack.LOGGER.info("--------- START (" + start + "->" + end + "): " + blockPos);
@@ -80,12 +82,14 @@ public class PathFinder {
         var priorityList = new Direction[]{ aDir, bDir, yDir, yDir.getOpposite(), bDir.getOpposite(), aDir.getOpposite() };
         QuickStack.LOGGER.info("--------- --- priority list:" + Arrays.toString(priorityList));
 
+
         //*** PATHFINDING STEP ***//
-        var distanceTravelled = 2;
+        var distanceTravelled = 2; // By the end of the first pass, the distance travelled must be 2!
         Direction prevDirection = null;
         for (var i = 0; i < 2; ++i) {
             prevDirection = getNextDirection(blockPos, prevDirection, priorityList);
 
+            // Fail if there are no valid spaces to move.
             if (prevDirection == null) return false;
 
             blockPos = blockPos.add(prevDirection.getVector());
@@ -94,7 +98,7 @@ public class PathFinder {
 
         priorityList = new Direction[]{ yDir }; // Only allow movement in the previously-determined y-axis direction.
         QuickStack.LOGGER.info("--------- --- priority list:" + Arrays.toString(priorityList));
-        // We allow *up to* two pathfinding iterations in the y-direction, only limited if moving in that direction for
+        // We allow *up to* two pathfinding iterations in the y-direction, only stopping if moving in that direction for
         // two iterations will overshoot the y-pos of the end position.
         for (var i = 0; i < Math.min((int) Math.abs(start.y - end.y), 2); ++i) {
             prevDirection = getNextDirection(blockPos, prevDirection, priorityList);
@@ -107,12 +111,12 @@ public class PathFinder {
             ++distanceTravelled;
         }
 
-        var finalPos = Vec3d.ofCenter(blockPos);
-        // TODO: Distance check!!!
-        if (finalPos.distanceTo(end) + distanceTravelled > MathHelper.square(distance))
-            return false;
 
         //*** RAYCAST STEP ***//
+        var finalPos = Vec3d.ofCenter(blockPos);
+        if (finalPos.distanceTo(end) + distanceTravelled > MathHelper.square(radius))
+            return false;
+
         return hasLineOfSight(chunkCache, finalPos, end, IGNORED_BLOCKS);
     }
 
@@ -158,12 +162,10 @@ public class PathFinder {
 
 
 
-
     @SuppressWarnings("ConstantConditions")
     public static boolean hasLineOfSight(BlockView world, Vec3d start, Vec3d end, @Nullable Set<Block> ignoredBlocks) {
-        //   * Note: 'blockHitFactory' lambda runs if any block has been hit.
-        //   * Note: 'missFactory' lambda runs if 'end' is reached and no collision with a non-ignored block occurred.
         return BlockView.raycast(start, end, new RaycastContext(start, end, COLLIDER, WATER, null),
+            //   * Note: Lambda runs if any block has been hit.
             (raycastContext, blockPos) -> {
                 var blockState = world.getBlockState(blockPos);
                 // We use 'null' to denote intermediary (invalid) states. The ignored set will determine whether we
@@ -178,6 +180,7 @@ public class PathFinder {
 
                 return raycastResult == null ? null : raycastResult.getType() != HitResult.Type.BLOCK;
             },
+            //   * Note: Lambda runs if 'end' is reached and no collision with a non-ignored block occurred.
             (raycastContext) -> true);
     }
 }
