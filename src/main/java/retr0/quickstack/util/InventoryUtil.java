@@ -22,14 +22,13 @@ public final class InventoryUtil {
      */
     public static Set<Item> getUniqueItems(Inventory inventory, int fromSlot, int toSlot) {
         var uniqueItems = new HashSet<Item>();
-
         // Return the empty set if the lower-bound is beyond the upper-bound.
         if (fromSlot > toSlot) return uniqueItems;
 
         for (var slot = fromSlot; slot <= Math.min(toSlot, inventory.size() - 1); ++slot) {
             var itemStack = inventory.getStack(slot);
 
-            if (!itemStack.equals(ItemStack.EMPTY)) uniqueItems.add(itemStack.getItem());
+            if (!itemStack.isEmpty()) uniqueItems.add(itemStack.getItem());
         }
         return uniqueItems;
     }
@@ -41,15 +40,11 @@ public final class InventoryUtil {
      */
     public static int getAvailableSlots(Inventory inventory, Item targetItem) {
         var available = 0;
-
         for (var slot = 0; slot < inventory.size(); ++slot) {
             var itemStack = inventory.getStack(slot);
+            var hasNonFullStack = itemStack.isOf(targetItem) && itemStack.getCount() < itemStack.getMaxCount();
 
-            if (itemStack.isEmpty() ||
-                (itemStack.getItem().equals(targetItem) && itemStack.getCount() < itemStack.getMaxCount()))
-            {
-                ++available;
-            }
+            if (itemStack.isEmpty() || hasNonFullStack) ++available;
         }
         return available;
     }
@@ -65,28 +60,18 @@ public final class InventoryUtil {
      * (e.g., if inventory {@code to} because full before the item stack was emptied).
      */
     public static boolean insert(Inventory from, Inventory to, int fromSlot) {
-        // TODO: NOT BEING MARKED DIRTY ENOUGH? DESYNC IN STACK COUNT OVER RESTARTS
         var targetStack = from.getStack(fromSlot);
+        var originalCount = targetStack.getCount();
 
         if (to == null || targetStack.equals(ItemStack.EMPTY) || getAvailableSlots(to, targetStack.getItem()) == 0)
             return false;
 
-        var originalCount = targetStack.getCount();
         var remainingStack = HopperBlockEntity.transfer(null, to, from.removeStack(fromSlot), null);
-
-        // Mark both inventories dirty if any items transferred.
         if (remainingStack.getCount() != originalCount) {
             to.markDirty();
             from.markDirty();
         }
-        // Return true if the stack was fully transferred; otherwise, add the remaining stack back into inventory 'from'
-        // and return false.
-        if (remainingStack.isEmpty())
-            return true;
-        else {
-            from.setStack(fromSlot, remainingStack);
-            return false;
-        }
+        return remainingStack.isEmpty();
     }
 
     private InventoryUtil() { }

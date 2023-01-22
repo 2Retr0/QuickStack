@@ -21,9 +21,7 @@ import java.util.SortedSet;
 
 @Pseudo @Mixin(SodiumWorldRenderer.class)
 public abstract class MixinSodiumWorldRenderer {
-    @Unique private static final OutlineRenderManager outlineManager =
-        QuickStackClient.getInstance().getOutlineRenderManager();
-
+    @Unique private static boolean isRendering;
     @Unique private static OutlineVertexConsumerProvider outlineProvider;
     @Unique private static Integer containerColor;
 
@@ -36,6 +34,7 @@ public abstract class MixinSodiumWorldRenderer {
         Camera camera, float tickDelta, CallbackInfo ci)
     {
         outlineProvider = bufferBuilders.getOutlineVertexConsumers();
+        isRendering = OutlineRenderManager.INSTANCE.isRendering();
     }
 
 
@@ -51,8 +50,8 @@ public abstract class MixinSodiumWorldRenderer {
             target = "Lnet/minecraft/block/entity/BlockEntity;getPos()Lnet/minecraft/util/math/BlockPos;",
             ordinal = 0))
     private BlockPos cacheContainerColor(BlockPos original) {
-        if (outlineManager.isRendering())
-            containerColor = outlineManager.blockEntityColorMap.get(original);
+        if (isRendering)
+            containerColor = OutlineRenderManager.INSTANCE.blockEntityColorMap.get(original);
 
         return original; // No actual modification.
     }
@@ -75,7 +74,7 @@ public abstract class MixinSodiumWorldRenderer {
     private VertexConsumerProvider useOutlineProvider(
         VertexConsumerProvider original, MatrixStack matrices, BufferBuilderStorage bufferBuilders)
     {
-        if (!outlineManager.isRendering() || containerColor == null) return original;
+        if (!isRendering || containerColor == null) return original;
 
         return RenderUtil.modifyOutlineProviderColor(outlineProvider, containerColor);
     }
@@ -94,7 +93,7 @@ public abstract class MixinSodiumWorldRenderer {
         VertexConsumer vertexConsumer, VertexConsumerProvider.Immediate immediate, RenderLayer renderLayer,
         CallbackInfoReturnable<VertexConsumer> cir)
     {
-        if (!outlineManager.isRendering() || containerColor == null) return;
+        if (!isRendering || containerColor == null) return;
 
         var outlineConsumer = outlineProvider.getBuffer(renderLayer);
         cir.setReturnValue(renderLayer.hasCrumbling() ?

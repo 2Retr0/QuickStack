@@ -25,9 +25,7 @@ public abstract class MixinWorldRenderer {
     @Shadow @Final private BufferBuilderStorage bufferBuilders;
     @Shadow @Final private MinecraftClient client;
 
-    @Unique private static final OutlineRenderManager outlineManager =
-        QuickStackClient.getInstance().getOutlineRenderManager();
-
+    @Unique private static boolean isRendering;
     @Unique private static OutlineVertexConsumerProvider outlineProvider;
     @Unique private static Integer containerColor;
 
@@ -45,8 +43,9 @@ public abstract class MixinWorldRenderer {
         ordinal = 4)
     private boolean shouldRenderOutline(boolean original) {
         outlineProvider = bufferBuilders.getOutlineVertexConsumers();
+        isRendering = OutlineRenderManager.INSTANCE.isRendering();
 
-        return original || outlineManager.isRendering();
+        return original || OutlineRenderManager.INSTANCE.isRendering();
     }
 
 
@@ -61,14 +60,14 @@ public abstract class MixinWorldRenderer {
         GameRenderer gameRenderer, LightmapTextureManager lightmapTextureManager, Matrix4f positionMatrix,
         CallbackInfo ci)
     {
-        if (!outlineManager.isRendering()) return;
+        if (!isRendering) return;
 
         var cameraPos = camera.getPos();
         var cameraX = cameraPos.getX();
         var cameraY = cameraPos.getY();
         var cameraZ = cameraPos.getZ();
 
-        outlineManager.blockModelColorMap.forEach((blockPos, containerInfo) -> {
+        OutlineRenderManager.INSTANCE.blockModelColorMap.forEach((blockPos, containerInfo) -> {
             var outlineColor = containerInfo.getLeft();
             var blockState = containerInfo.getRight();
             var bakedModel = client.getBlockRenderManager().getModel(blockState);
@@ -97,8 +96,8 @@ public abstract class MixinWorldRenderer {
             target = "Lnet/minecraft/block/entity/BlockEntity;getPos()Lnet/minecraft/util/math/BlockPos;",
             ordinal = 0))
     private BlockPos getContainerColor(BlockPos original) {
-        if (outlineManager.isRendering())
-            containerColor = outlineManager.blockEntityColorMap.get(original);
+        if (isRendering)
+            containerColor = OutlineRenderManager.INSTANCE.blockEntityColorMap.get(original);
 
         return original; // No actual modification.
     }
@@ -120,7 +119,7 @@ public abstract class MixinWorldRenderer {
             ordinal = 0, shift = At.Shift.AFTER),
         ordinal = 0)
     private VertexConsumerProvider useOutlineProvider(VertexConsumerProvider original) {
-        if (!outlineManager.isRendering() || containerColor == null) return original;
+        if (!isRendering || containerColor == null) return original;
 
         return RenderUtil.modifyOutlineProviderColor(outlineProvider, containerColor);
     }
@@ -139,7 +138,7 @@ public abstract class MixinWorldRenderer {
         VertexConsumerProvider.Immediate immediate, VertexConsumer vertexConsumer, RenderLayer renderLayer,
         CallbackInfoReturnable<VertexConsumer> cir)
     {
-        if (!outlineManager.isRendering() || containerColor == null) return;
+        if (!isRendering || containerColor == null) return;
 
         var outlineConsumer = outlineProvider.getBuffer(renderLayer);
         cir.setReturnValue(renderLayer.hasCrumbling() ?

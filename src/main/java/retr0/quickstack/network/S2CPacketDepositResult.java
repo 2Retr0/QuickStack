@@ -9,8 +9,9 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import retr0.quickstack.QuickStack;
 import retr0.quickstack.QuickStackClient;
+import retr0.quickstack.util.OutlineRenderManager;
+import retr0.quickstack.util.QuickStackManager;
 
 import java.util.*;
 
@@ -21,7 +22,7 @@ import static retr0.quickstack.QuickStack.MOD_ID;
  * block entity and the slots of the player inventory whose item stack has been transferred (completely or
  * partially) to the container.
  */
-public class DepositResultS2CPacket {
+public class S2CPacketDepositResult {
     public static final Identifier DEPOSIT_RESULT_ID = new Identifier(MOD_ID, "quick_stack_color_response");
 
     private final Map<BlockPos, List<Integer>> containerSlotMap = new HashMap<>();
@@ -39,11 +40,13 @@ public class DepositResultS2CPacket {
     }
 
 
-    public int getDepositedContainerCount() { return containerSlotMap.size(); }
+    public int getDepositedContainerCount() {
+        return containerSlotMap.size();
+    }
 
 
 
-    public static void send(DepositResultS2CPacket depositResult, ServerPlayerEntity player) {
+    public static void send(S2CPacketDepositResult depositResult, ServerPlayerEntity player) {
         var buf = PacketByteBufs.create();
 
         buf.writeByte(depositResult.containerSlotMap.size());
@@ -60,7 +63,6 @@ public class DepositResultS2CPacket {
     public static void receive(
         MinecraftClient client, ClientPlayNetworkHandler handler, PacketByteBuf buf, PacketSender responseSender)
     {
-        QuickStack.LOGGER.info("QuickStackColorResponse Received!");
         var depositedContainerCount = buf.readByte();
         var containerSlotMap = new HashMap<BlockPos, List<Integer>>();
 
@@ -75,11 +77,11 @@ public class DepositResultS2CPacket {
             }
             containerSlotMap.put(containerPos, associatedSlots);
         }
-        QuickStack.LOGGER.info("QuickStackColorResponse Finished Processing!");
 
         client.execute(() -> {
-            QuickStack.LOGGER.info("QuickStackColorResponse Executed!");
-            QuickStackClient.getInstance().getOutlineRenderManager().addMappings(client.player.world, containerSlotMap);
+            if (client.player == null) return;
+
+            OutlineRenderManager.INSTANCE.addMappings(client.player.world, containerSlotMap);
         });
     }
 }

@@ -1,7 +1,10 @@
 package retr0.quickstack.util;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.render.OutlineVertexConsumerProvider;
 
+@Environment(EnvType.CLIENT)
 public class RenderUtil {
     /**
      * Changes the target color of an {@link OutlineVertexConsumerProvider} for a given color.

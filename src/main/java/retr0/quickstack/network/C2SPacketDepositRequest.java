@@ -8,12 +8,11 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
-import retr0.quickstack.QuickStack;
-import retr0.quickstack.util.QuickStackUtil;
+import retr0.quickstack.util.QuickStackManager;
 
 import static retr0.quickstack.QuickStack.MOD_ID;
 
-public class DepositRequestC2SPacket {
+public class C2SPacketDepositRequest {
     public static final Identifier DEPOSIT_REQUEST_ID = new Identifier(MOD_ID, "request_quick_stack");
 
     public static void send() {
@@ -27,10 +26,6 @@ public class DepositRequestC2SPacket {
         MinecraftServer server, ServerPlayerEntity player, ServerPlayNetworkHandler handler, PacketByteBuf buf,
         PacketSender responseSender)
     {
-        QuickStack.LOGGER.info("QuickStackRequest Received!");
-        server.execute(() -> {
-            QuickStack.LOGGER.info("QuickStackRequest Executed!");
-            QuickStackUtil.quickStack(player, 8);
-        });
+        server.execute(() -> QuickStackManager.INSTANCE.quickStack(player));
     }
 }

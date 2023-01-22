@@ -1,5 +1,7 @@
 package retr0.quickstack.util;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.ChestBlock;
 import net.minecraft.client.MinecraftClient;
@@ -15,9 +17,12 @@ import java.util.Map;
 
 import static net.minecraft.block.DoubleBlockProperties.Type.FIRST;
 
+@Environment(EnvType.CLIENT)
 public class OutlineRenderManager {
     private static final long DURATION_MS = 5000L; // Interval (upon closing the current screen) to render outlines.
     private static final Integer[] COLORS = new Integer[]{ 0xDC315D, 0xE5AB4C, 0x6AD6A1, 0x3C62D5, 0xD34DC0, 0xFFFFFF };
+
+    public static final OutlineRenderManager INSTANCE = new OutlineRenderManager(MinecraftClient.getInstance());
 
     private final FixedQueue<Integer> colorQueue = new FixedQueue<>(COLORS);
     private final MinecraftClient client;

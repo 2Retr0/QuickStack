@@ -15,14 +15,14 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import retr0.quickstack.QuickStack;
-import retr0.quickstack.network.DepositRequestC2SPacket;
+import retr0.quickstack.network.C2SPacketDepositRequest;
 
 import static retr0.quickstack.QuickStack.MOD_ID;
 
 @Mixin(InventoryScreen.class)
 public abstract class MixinInventoryScreen extends AbstractInventoryScreen<PlayerScreenHandler> {
     @Unique private static final Identifier QUICK_STACK_BUTTON_TEXTURE =
-        new Identifier(MOD_ID, "textures/gui/quick_stack_button_alt.png");
+        new Identifier(MOD_ID, "textures/gui/quick_stack_button2.png");
 
     @Unique private ButtonWidget quickStackButton;
 
@@ -35,12 +35,10 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
             value = "INVOKE",
             target = "Lnet/minecraft/client/gui/screen/ingame/InventoryScreen;addDrawableChild(Lnet/minecraft/client/gui/Element;)Lnet/minecraft/client/gui/Element;"))
     public void addQuickStackButton(CallbackInfo ci) {
-        quickStackButton = new TexturedButtonWidget(x + 128, height / 2 - 22, 20, 18, 0, 0, 19, QUICK_STACK_BUTTON_TEXTURE,
-            button -> {
-                QuickStack.LOGGER.info("Pressed QuickStack Button!");
+        int x = this.x + 128, y = height / 2 - 22;
+        quickStackButton = new TexturedButtonWidget(x, y, 20, 18, 0, 0, 19, QUICK_STACK_BUTTON_TEXTURE, 32, 64,
+            button -> C2SPacketDepositRequest.send());
 
-                DepositRequestC2SPacket.send();
-            });
         this.addDrawableChild(quickStackButton);
     }
 
@@ -55,9 +53,10 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
             value = "INVOKE",
             target = "Lnet/minecraft/client/gui/widget/TexturedButtonWidget;<init>(IIIIIIILnet/minecraft/util/Identifier;Lnet/minecraft/client/gui/widget/ButtonWidget$PressAction;)V"))
     public ButtonWidget.PressAction updateQuickStackButtonPosition(ButtonWidget.PressAction original) {
+        int x = this.x + 128, y = height / 2 - 22;
         return button -> {
             original.onPress(button);
-            quickStackButton.setPos(x + 128, height / 2 - 22);
+            quickStackButton.setPos(x, y);
         };
     }
 

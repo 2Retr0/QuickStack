@@ -16,9 +16,7 @@ import retr0.quickstack.util.OutlineRenderManager;
 
 @Mixin(HandledScreen.class)
 public abstract class MixinHandledScreen extends Screen {
-    @Unique private static final OutlineRenderManager outlineManager =
-        QuickStackClient.getInstance().getOutlineRenderManager();
-
+    // FIXME: this is awful, find a better solution!
     @Inject(
         method = "render",
         at = @At(
@@ -30,7 +28,7 @@ public abstract class MixinHandledScreen extends Screen {
         MatrixStack matrices, int mouseX, int mouseY, float delta, CallbackInfo ci, int i, int j,
         MatrixStack matrixStack, int k, Slot slot)
     {
-        var slotColor = outlineManager.slotColorMap.get(slot.getIndex());
+        var slotColor = OutlineRenderManager.INSTANCE.slotColorMap.get(slot.getIndex());
         if (slotColor == null || slot.inventory != client.player.getInventory()) return;
 
         var slotShadowColor = 0xFF000000 | slotColor;

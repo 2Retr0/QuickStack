@@ -24,16 +24,16 @@ import static net.minecraft.world.RaycastContext.FluidHandling.WATER;
 import static net.minecraft.world.RaycastContext.ShapeType.COLLIDER;
 
 public class PathFinder {
-    private final ChunkCache chunkCache;
-    private final BiFunction<Vec3d, Vec3d, Boolean> nearLineOfSightCached;
-
     // Set of blocks which are occupied in the center, but should be ignored for line-of-sight calculations.
     private static final Set<Block> IGNORED_BLOCKS =
         Set.of(Blocks.CHAIN, Blocks.END_ROD, Blocks.LANTERN, Blocks.LIGHTNING_ROD);
 
-    public PathFinder(World world, int i, BlockPos from) {
-        chunkCache = new ChunkCache(world, from.add(-i, -i, -i), from.add(i, i, i));
-        nearLineOfSightCached = Util.memoize((start, end) -> hasNearLineOfSight(start, end, i));
+    private final ChunkCache chunkCache;
+    private final BiFunction<Vec3d, Vec3d, Boolean> nearLineOfSightCached;
+
+    public PathFinder(World world, int radius, BlockPos from) {
+        chunkCache = new ChunkCache(world, from.add(-radius, -radius, -radius), from.add(radius, radius, radius));
+        nearLineOfSightCached = Util.memoize((start, end) -> hasNearLineOfSight(start, end, radius));
     }
 
 
@@ -57,10 +57,12 @@ public class PathFinder {
         return nearLineOfSightCached.apply(start, end);
     }
 
+    /**
+     * @see PathFinder#hasNearLineOfSight(Vec3d, Vec3d)
+     */
     private boolean hasNearLineOfSight(Vec3d start, Vec3d end, int radius) {
         var blockPos = new BlockPos(start.x, start.y, start.z);
         var directionToEnd = start.subtract(end); // Vector from start->end centered about the origin.
-        QuickStack.LOGGER.info("--------- START (" + start + "->" + end + "): " + blockPos);
 
         //*** DIRECTION PRIORITIZATION STEP ***//
         // Based on the direction to the end, we assign a direction to each axis.
@@ -79,35 +81,31 @@ public class PathFinder {
             bDir = xDir;
         }
         // Assume the opposite direction of the highest priority is the lowest priority, etc...
-        var priorityList = new Direction[]{ aDir, bDir, yDir, yDir.getOpposite(), bDir.getOpposite(), aDir.getOpposite() };
-        QuickStack.LOGGER.info("--------- --- priority list:" + Arrays.toString(priorityList));
+        var dirPriorities = new Direction[]{ aDir, bDir, yDir, yDir.getOpposite(), bDir.getOpposite(), aDir.getOpposite() };
 
 
         //*** PATHFINDING STEP ***//
         var distanceTravelled = 2; // By the end of the first pass, the distance travelled must be 2!
         Direction prevDirection = null;
         for (var i = 0; i < 2; ++i) {
-            prevDirection = getNextDirection(blockPos, prevDirection, priorityList);
+            prevDirection = getNextDirection(blockPos, prevDirection, dirPriorities);
 
             // Fail if there are no valid spaces to move.
             if (prevDirection == null) return false;
 
             blockPos = blockPos.add(prevDirection.getVector());
-            QuickStack.LOGGER.info("--------- NOW:" + blockPos);
         }
 
-        priorityList = new Direction[]{ yDir }; // Only allow movement in the previously-determined y-axis direction.
-        QuickStack.LOGGER.info("--------- --- priority list:" + Arrays.toString(priorityList));
+        dirPriorities = new Direction[]{ yDir };
         // We allow *up to* two pathfinding iterations in the y-direction, only stopping if moving in that direction for
         // two iterations will overshoot the y-pos of the end position.
         for (var i = 0; i < Math.min((int) Math.abs(start.y - end.y), 2); ++i) {
-            prevDirection = getNextDirection(blockPos, prevDirection, priorityList);
+            prevDirection = getNextDirection(blockPos, prevDirection, dirPriorities);
 
             // Unlike the previous two iterations, we will not fail if there are no valid spaces to move.
             if (prevDirection == null) break;
 
             blockPos = blockPos.add(prevDirection.getVector());
-            QuickStack.LOGGER.info("--------- NOW:" + blockPos);
             ++distanceTravelled;
         }
 
@@ -131,28 +129,31 @@ public class PathFinder {
     {
         for (var direction : directionPriorities) {
             var isPreviousDirection = previousDirection != null && previousDirection.getOpposite() == direction;
-            if (!isPreviousDirection && isNeighborFree(target, direction)) {
-                QuickStack.LOGGER.info("--------- --- found neighbor:" + direction);
-                return direction;
-            }
+
+            if (!isPreviousDirection && isNeighborFree(target, direction)) return direction;
         }
         return null;
     }
 
 
 
+    /**
+     * Checks the center of the neighboring block position from the center of the target position has a direct line of
+     * sight in the given direction.
+     * @param target The starting position whose center will be considered.
+     * @param direction The direction to check.
+     * @return {@code true} if there is a direct line of sight between the centers; otherwise, {@code false}.
+     * @see PathFinder#hasLineOfSight(BlockView, Vec3d, Vec3d, Set)
+     */
     public boolean isNeighborFree(BlockPos target, Direction direction) {
         var dir = direction.getVector();
         var neighborPos = target.add(dir);
         var blockState = chunkCache.getBlockState(neighborPos);
 
-        if (blockState.isSideSolidFullSquare(chunkCache, neighborPos, direction.getOpposite())) {
-            QuickStack.LOGGER.info("--------- --- found solid block: " + blockState.getBlock().getName().getString());
+        if (blockState.isSideSolidFullSquare(chunkCache, neighborPos, direction.getOpposite()))
             return false;
-        } else if (blockState.isAir()) {
-            QuickStack.LOGGER.info("--------- --- found air");
+        else if (blockState.isAir())
             return true;
-        }
 
         var halfDir = Vec3d.of(dir).multiply(0.501);
         var raycastStart = Vec3d.ofCenter(target).add(halfDir);
@@ -162,6 +163,17 @@ public class PathFinder {
 
 
 
+    /**
+     * Uses raycasting to determine if there is direct line of sight between a starting and ending position. The raycast
+     * hit detection performed is identical to that of the player crosshair hitbox detection when mining, attacking,
+     * etc.
+     * @param world The world to check in.
+     * @param start The exact starting position of the ray.
+     * @param end The exact ending position of the ray.
+     * @param ignoredBlocks A {@link Set} of blocks to ignore if an intersection occurs.
+     * @return {@code true} if there is a direction line of sight from the starting to ending position; otherwise,
+     * {@code false}
+     */
     @SuppressWarnings("ConstantConditions")
     public static boolean hasLineOfSight(BlockView world, Vec3d start, Vec3d end, @Nullable Set<Block> ignoredBlocks) {
         return BlockView.raycast(start, end, new RaycastContext(start, end, COLLIDER, WATER, null),

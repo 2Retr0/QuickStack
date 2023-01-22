@@ -23,7 +23,7 @@ import static retr0.quickstack.QuickStack.MOD_ID;
 /**
  * Maps items to a "deposited total" along with an immutable icon for the container it was deposited into.
  */
-public class ToastResultS2CPacket {
+public class S2CPacketToastResult {
     public static final Identifier TOAST_RESULT_ID = new Identifier(MOD_ID, "quick_stack_response");
 
     private final Map<Item, Pair<Integer, ItemStack>> itemUsageMap = new HashMap<>();
@@ -32,11 +32,11 @@ public class ToastResultS2CPacket {
     private int totalDepositAmount = 0;
 
     /**
-     * Adds a specified amount to the deposited total entry for an item key creating a new entry if needed.
-     * @param depositedItem The specified item key.
+     * Adds a specified amount to the deposited total entry of an item creating a new entry if needed.
+     * @param depositedItem The specified item.
      * @param depositedCount The amount to add to the item entry's deposited total.
      * @param containerIcon An {@link ItemStack}, representing the deposited container's icon, to bind to
-     *                      the entry if the entry does not yet exist.
+     *                      the item entry if it does not yet exist.
      */
     public void updateDepositAmount(
         Item depositedItem, int depositedCount, BlockPos containerPos, ItemStack containerIcon)
@@ -49,24 +49,6 @@ public class ToastResultS2CPacket {
 
         totalDepositAmount += depositedCount;
         usedContainers.add(containerPos);
-    }
-
-
-
-    public static void send(ToastResultS2CPacket toastResult, ServerPlayerEntity player) {
-        var totalUsedContainers = toastResult.usedContainers.size();
-        var topDeposited = toastResult.getTopNDeposited(3);
-
-        var buf = PacketByteBufs.create();
-
-        buf.writeInt(toastResult.totalDepositAmount);
-        buf.writeByte(totalUsedContainers);
-        buf.writeByte(topDeposited.size());
-        topDeposited.forEach(iconPair -> {
-            buf.writeItemStack(iconPair.itemIcon());
-            buf.writeItemStack(iconPair.containerIcon());
-        });
-        ServerPlayNetworking.send(player, TOAST_RESULT_ID, buf);
     }
 
 
@@ -94,12 +76,34 @@ public class ToastResultS2CPacket {
 
 
     /**
-     * Shows/updates a {@link QuickStackToast} instance with the information from the packet.
+     * Sends a {@link S2CPacketToastResult} packet to the client.
+     */
+    public static void send(S2CPacketToastResult toastResult, ServerPlayerEntity player) {
+        var totalUsedContainers = toastResult.usedContainers.size();
+        var topDeposited = toastResult.getTopNDeposited(3);
+        var buf = PacketByteBufs.create();
+
+        //   * Note: In the case where an item is deposited into multiple containers, the container icon for the toast
+        //           would be the highest priority container for the item (denoted by the entry in the item->container
+        //           mappings).
+        buf.writeInt(toastResult.totalDepositAmount);
+        buf.writeByte(totalUsedContainers);
+        buf.writeByte(topDeposited.size());
+        topDeposited.forEach(iconPair -> {
+            buf.writeItemStack(iconPair.itemIcon());
+            buf.writeItemStack(iconPair.containerIcon());
+        });
+        ServerPlayNetworking.send(player, TOAST_RESULT_ID, buf);
+    }
+
+
+
+    /**
+     * Shows/updates a {@link QuickStackToast} instance with the packet data on the client.
      */
     public static void receive(
         MinecraftClient client, ClientPlayNetworkHandler handler, PacketByteBuf buf, PacketSender responseSender)
     {
-        QuickStack.LOGGER.info("QuickStackResponse Received!");
         var depositCount = buf.readInt();
         var containerCount = buf.readByte();
         var iconMappings = new ArrayList<IconPair>();
@@ -111,11 +115,7 @@ public class ToastResultS2CPacket {
 
             iconMappings.add(new IconPair(itemIcon, containerIcon));
         }
-        QuickStack.LOGGER.info("QuickStackResponse Finished Processing!");
 
-        client.execute(() -> {
-            QuickStack.LOGGER.info("QuickStackResponse Executed!");
-            QuickStackToast.show(client.getToastManager(), depositCount, containerCount, iconMappings);
-        });
+        client.execute(() -> QuickStackToast.show(client.getToastManager(), depositCount, containerCount, iconMappings));
     }
 }

@@ -66,8 +66,11 @@ public class QuickStackToast implements Toast {
         RenderSystem.setShader(GameRenderer::getPositionTexProgram);
         RenderSystem.setShaderTexture(0, TEXTURE);
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+        // Draw background
         manager.drawTexture(matrices, 0, 0, 0, 32, this.getWidth(), this.getHeight());
 
+        // Draw description
         var description = getDescription(totalDepositCount, totalContainerCount);
         manager.getClient().textRenderer.draw(matrices, HEADER, 30.0f, 7.0f, 0xFF500050);
         manager.getClient().textRenderer.draw(matrices, description, 30.0f, 18.0f, 0xFF000000);
@@ -75,13 +78,14 @@ public class QuickStackToast implements Toast {
             (int)(startTime / Math.max(1L, DURATION_MS / iconMappings.size()) % iconMappings.size()));
 
         var matrixStack = RenderSystem.getModelViewStack();
-
+        // Draw current container icon
         matrixStack.push();
         matrixStack.scale(0.6f, 0.6f, 1.0f);
         RenderSystem.applyModelViewMatrix();
         manager.getClient().getItemRenderer().renderInGui(iconMapping.containerIcon(), 3, 3);
         matrixStack.pop();
 
+        // Draw current item icon
         RenderSystem.applyModelViewMatrix();
         manager.getClient().getItemRenderer().renderInGui(iconMapping.itemIcon(), 8, 8);
 
