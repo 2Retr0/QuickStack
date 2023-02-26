@@ -48,11 +48,8 @@ public class QuickStackManager {
         previousSoundPlayTimeMs = currentTimeMs;
     }
 
-    /**
-     *
-     * @param player
-     * @param times
-     */
+
+
     // TODO: Redo sound logic in some future version! Using a queue for **all** players on the server is very bad!
     private void playSound(PlayerEntity player, int times) {
         var emitPos = player.getEyePos().subtract(player.getRotationVector().multiply(3));
@@ -147,6 +144,7 @@ public class QuickStackManager {
      * for depositing.
      */
     public void quickStack(ServerPlayerEntity player) {
+        var dryRun = true;
         var itemContainerMap = generateMappings(player);
         var playerInventory = player.getInventory();
         var serverWorld = player.getWorld();
@@ -156,6 +154,7 @@ public class QuickStackManager {
         // For each item in the player's *main* inventory try to insert the item into the inventory of the associated
         // queue.
         var depositCount = 0;
+        var containerCount = 0;
         var depositResultPacket = new S2CPacketDepositResult();
         var toastResultPacket = new S2CPacketToastResult();
         var pathFinder = new PathFinder(serverWorld, PATHFINDING_RADIUS, player.getBlockPos());
@@ -195,10 +194,11 @@ public class QuickStackManager {
                     toastResultPacket.updateDepositAmount(originalItem, depositCount, inventoryInfo.blockPos, inventoryInfo.icon);
                 }
             }
+
+            containerCount = depositResultPacket.getDepositedContainerCount();
         }
 
         // Sending the accumulated deposit results back to the client.
-        var containerCount = depositResultPacket.getDepositedContainerCount();
         if (depositCount > 0) {
             QuickStack.LOGGER.info("{} quick stacked {} item{} into {} container{}",
                 player.getName().getString(),

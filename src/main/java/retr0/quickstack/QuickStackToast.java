@@ -40,13 +40,13 @@ public class QuickStackToast implements Toast {
 
 
 
-    public static Text getPluralityTranslation(String dictKey, int valueAmount) {
+    private static Text getPluralityTranslation(String dictKey, int valueAmount) {
         return Text.translatable(MOD_ID + ".dict." + dictKey + "." + (valueAmount == 1 ? "singular" : "plural"));
     }
 
 
 
-    public static Text getDescription(int depositCount, int containerCount) {
+    private static Text getDescription(int depositCount, int containerCount) {
         return Text.translatable(MOD_ID + ".toast.description",
             depositCount, getPluralityTranslation("item", depositCount),
             containerCount, getPluralityTranslation("chest", containerCount));

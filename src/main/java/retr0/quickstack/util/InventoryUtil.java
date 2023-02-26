@@ -70,6 +70,7 @@ public final class InventoryUtil {
         if (remainingStack.getCount() != originalCount) {
             to.markDirty();
             from.markDirty();
+            from.setStack(fromSlot, remainingStack);
         }
         return remainingStack.isEmpty();
     }

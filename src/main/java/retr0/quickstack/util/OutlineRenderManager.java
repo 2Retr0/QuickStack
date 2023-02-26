@@ -35,7 +35,7 @@ public class OutlineRenderManager {
     private boolean isRendering = false;
     private boolean waitForScreenClose = false;
 
-    public OutlineRenderManager(MinecraftClient client) {
+    private OutlineRenderManager(MinecraftClient client) {
         this.client = client;
     }
 

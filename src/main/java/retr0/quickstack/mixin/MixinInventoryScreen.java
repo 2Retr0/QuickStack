@@ -34,7 +34,7 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/gui/screen/ingame/InventoryScreen;addDrawableChild(Lnet/minecraft/client/gui/Element;)Lnet/minecraft/client/gui/Element;"))
-    public void addQuickStackButton(CallbackInfo ci) {
+    private void addQuickStackButton(CallbackInfo ci) {
         int x = this.x + 128, y = height / 2 - 22;
         quickStackButton = new TexturedButtonWidget(x, y, 20, 18, 0, 0, 19, QUICK_STACK_BUTTON_TEXTURE, 32, 64,
             button -> C2SPacketDepositRequest.send());
@@ -52,7 +52,7 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/gui/widget/TexturedButtonWidget;<init>(IIIIIIILnet/minecraft/util/Identifier;Lnet/minecraft/client/gui/widget/ButtonWidget$PressAction;)V"))
-    public ButtonWidget.PressAction updateQuickStackButtonPosition(ButtonWidget.PressAction original) {
+    private ButtonWidget.PressAction updateQuickStackButtonPosition(ButtonWidget.PressAction original) {
         int x = this.x + 128, y = height / 2 - 22;
         return button -> {
             original.onPress(button);
@@ -60,7 +60,7 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
         };
     }
 
-    public MixinInventoryScreen(PlayerScreenHandler screenHandler, PlayerInventory playerInventory, Text text) {
+    private MixinInventoryScreen(PlayerScreenHandler screenHandler, PlayerInventory playerInventory, Text text) {
         super(screenHandler, playerInventory, text);
     }
 }

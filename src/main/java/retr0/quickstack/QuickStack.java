@@ -4,12 +4,16 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import retr0.quickstack.network.PacketRegistry;
 import retr0.quickstack.util.OutlineRenderManager;
 import retr0.quickstack.util.QuickStackManager;
+
+import static net.fabricmc.fabric.api.resource.ResourcePackActivationType.DEFAULT_ENABLED;
 
 public class QuickStack implements ModInitializer {
     public static final String MOD_ID = "quickstack";
