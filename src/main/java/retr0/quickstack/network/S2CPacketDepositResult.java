@@ -9,9 +9,7 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import retr0.quickstack.QuickStackClient;
-import retr0.quickstack.util.OutlineRenderManager;
-import retr0.quickstack.util.QuickStackManager;
+import retr0.quickstack.util.OutlineColorManager;
 
 import java.util.*;
 
@@ -81,7 +79,7 @@ public class S2CPacketDepositResult {
         client.execute(() -> {
             if (client.player == null) return;
 
-            OutlineRenderManager.INSTANCE.addMappings(client.player.world, containerSlotMap);
+            OutlineColorManager.getInstance().addMappings(client.player.world, containerSlotMap);
         });
     }
 }

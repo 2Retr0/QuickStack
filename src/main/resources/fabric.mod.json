@@ -14,7 +14,7 @@
         "issues": "https://github.com/2Retr0/QuickStack/issues"
     },
 
-    "license": "CC0-1.0",
+    "license": "MIT",
     "icon": "assets/quickstack/icon.png",
 
     "environment": "*",

@@ -1,9 +1,12 @@
 package retr0.quickstack.util;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.ChestBlock;
 import net.minecraft.block.DoubleBlockProperties;
 import net.minecraft.block.entity.LootableContainerBlockEntity;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
@@ -18,17 +21,16 @@ import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
-import retr0.itemfavorites.ItemFavorites;
-import retr0.itemfavorites.extension.ExtensionItemStack;
 import retr0.quickstack.QuickStack;
+import retr0.quickstack.compat.itemfavorites.CompatItemFavorites;
 import retr0.quickstack.mixin.AccessorLootableContainerBlockEntity;
 import retr0.quickstack.network.S2CPacketDepositResult;
 import retr0.quickstack.network.S2CPacketToastResult;
 
 import java.util.*;
 
-public class QuickStackManager {
-    public static final QuickStackManager INSTANCE = new QuickStackManager();
+public final class QuickStackManager {
+    private static QuickStackManager instance;
 
     private static final int PATHFINDING_RADIUS = 8;
     private static final int SEARCH_RADIUS = 8;
@@ -38,6 +40,17 @@ public class QuickStackManager {
 
     private final Deque<PlayerEntity> queuedSoundInstances = new ArrayDeque<>();
     private long previousSoundPlayTimeMs = -1;
+
+    public static void register() {
+        if (QuickStackManager.instance == null) {
+            instance = new QuickStackManager();
+            ServerTickEvents.START_WORLD_TICK.register(clientWorld -> instance.tick());
+        }
+    }
+
+    public static QuickStackManager getInstance() {
+        return instance;
+    }
 
     public void tick() {
         var currentTimeMs = Util.getMeasuringTimeMs();
@@ -144,7 +157,6 @@ public class QuickStackManager {
      * for depositing.
      */
     public void quickStack(ServerPlayerEntity player) {
-        var dryRun = true;
         var itemContainerMap = generateMappings(player);
         var playerInventory = player.getInventory();
         var serverWorld = player.getWorld();
@@ -153,8 +165,8 @@ public class QuickStackManager {
 
         // For each item in the player's *main* inventory try to insert the item into the inventory of the associated
         // queue.
-        var depositCount = 0;
-        var containerCount = 0;
+        var itemsDeposited = 0;
+        var containersUsed = 0;
         var depositResultPacket = new S2CPacketDepositResult();
         var toastResultPacket = new S2CPacketToastResult();
         var pathFinder = new PathFinder(serverWorld, PATHFINDING_RADIUS, player.getBlockPos());
@@ -163,12 +175,7 @@ public class QuickStackManager {
             var containerQueue = itemContainerMap.get(itemStack.getItem());
             var stackSpread = 1;
 
-            // noinspection DataFlowIssue //
-            if (containerQueue == null || (FabricLoader.getInstance().isModLoaded(ItemFavorites.MOD_ID) &&
-                ((ExtensionItemStack) (Object) itemStack).isFavorite()))
-            {
-                continue;
-            }
+            if (containerQueue == null || CompatItemFavorites.isFavorite(itemStack)) continue;
 
             while (itemStack.getCount() != 0 && !containerQueue.isEmpty() && stackSpread++ < MAX_STACK_SPREAD) {
                 var inventoryInfo = containerQueue.peek(); // Per-quick stack, only remove if full.
@@ -188,30 +195,32 @@ public class QuickStackManager {
                 // just be used for deposited items/container calculations.
                 itemStack = playerInventory.getStack(slot);
                 if (originalCount != itemStack.getCount()) {
-                    depositCount += originalCount - itemStack.getCount();
+                    var depositCount = originalCount - itemStack.getCount();
+                    itemsDeposited += depositCount;
 
                     depositResultPacket.updateContainerSlots(inventoryInfo.blockPos, slot);
                     toastResultPacket.updateDepositAmount(originalItem, depositCount, inventoryInfo.blockPos, inventoryInfo.icon);
                 }
             }
-
-            containerCount = depositResultPacket.getDepositedContainerCount();
+            containersUsed = depositResultPacket.getDepositedContainerCount();
         }
 
         // Sending the accumulated deposit results back to the client.
-        if (depositCount > 0) {
+        if (itemsDeposited > 0) {
             QuickStack.LOGGER.info("{} quick stacked {} item{} into {} container{}",
                 player.getName().getString(),
-                depositCount, (depositCount > 1 ? "s" : ""),
-                containerCount, (containerCount > 1 ? "s" : ""));
+                itemsDeposited, (itemsDeposited > 1 ? "s" : ""),
+                containersUsed, (containersUsed > 1 ? "s" : ""));
 
             S2CPacketToastResult.send(toastResultPacket, player);
             S2CPacketDepositResult.send(depositResultPacket, player);
 
             // Play up to a maximum of two sound instances for deposited container counts > 1 to prevent spam.
-            playSound(player, Math.min(containerCount, 2));
+            playSound(player, Math.min(containersUsed, 2));
         }
     }
+
+    private QuickStackManager() { }
 
 
 

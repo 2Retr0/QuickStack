@@ -3,7 +3,9 @@ package retr0.quickstack.mixin;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,20 +16,19 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import retr0.quickstack.QuickStackClient;
-import retr0.quickstack.util.OutlineRenderManager;
+import retr0.quickstack.util.OutlineColorManager;
 import retr0.quickstack.util.RenderUtil;
-
-import static net.minecraft.screen.PlayerScreenHandler.BLOCK_ATLAS_TEXTURE;
 
 @Mixin(WorldRenderer.class)
 public abstract class MixinWorldRenderer {
     @Shadow @Final private BufferBuilderStorage bufferBuilders;
     @Shadow @Final private MinecraftClient client;
 
+    @Shadow private @Nullable ClientWorld world;
+
     @Unique private static boolean isRendering;
     @Unique private static OutlineVertexConsumerProvider outlineProvider;
-    @Unique private static Integer containerColor;
+    @Unique private static int containerColor;
 
     /**
      * Adds additional logic to enable the outline shader if any blocks are set to have an outline. ALso caches the
@@ -43,9 +44,9 @@ public abstract class MixinWorldRenderer {
         ordinal = 4)
     private boolean shouldRenderOutline(boolean original) {
         outlineProvider = bufferBuilders.getOutlineVertexConsumers();
-        isRendering = OutlineRenderManager.INSTANCE.isRendering();
+        isRendering = OutlineColorManager.getInstance().isRendering();
 
-        return original || OutlineRenderManager.INSTANCE.isRendering();
+        return original || isRendering;
     }
 
 
@@ -62,25 +63,7 @@ public abstract class MixinWorldRenderer {
     {
         if (!isRendering) return;
 
-        var cameraPos = camera.getPos();
-        var cameraX = cameraPos.getX();
-        var cameraY = cameraPos.getY();
-        var cameraZ = cameraPos.getZ();
-
-        OutlineRenderManager.INSTANCE.blockModelColorMap.forEach((blockPos, containerInfo) -> {
-            var outlineColor = containerInfo.getLeft();
-            var blockState = containerInfo.getRight();
-            var bakedModel = client.getBlockRenderManager().getModel(blockState);
-            var outlineConsumer = RenderUtil.modifyOutlineProviderColor(outlineProvider, outlineColor)
-                .getBuffer(RenderLayer.getOutline(BLOCK_ATLAS_TEXTURE));
-
-            // Render the selected block models with the outline vertex consumer.
-            matrices.push();
-            matrices.translate(blockPos.getX() - cameraX, blockPos.getY() - cameraY, blockPos.getZ() - cameraZ);
-            client.getBlockRenderManager().getModelRenderer()
-                .render(matrices.peek(), outlineConsumer, blockState, bakedModel, 0.0f, 0.0f, 0.0f, 0, 0);
-            matrices.pop();
-        });
+        RenderUtil.drawBlockModelOutlines(client, matrices, camera, world, outlineProvider);
     }
 
 
@@ -97,7 +80,7 @@ public abstract class MixinWorldRenderer {
             ordinal = 0))
     private BlockPos getContainerColor(BlockPos original) {
         if (isRendering)
-            containerColor = OutlineRenderManager.INSTANCE.blockEntityColorMap.get(original);
+            containerColor = OutlineColorManager.getInstance().getBlockOutlineColor(original);
 
         return original; // No actual modification.
     }
@@ -119,7 +102,7 @@ public abstract class MixinWorldRenderer {
             ordinal = 0, shift = At.Shift.AFTER),
         ordinal = 0)
     private VertexConsumerProvider useOutlineProvider(VertexConsumerProvider original) {
-        if (!isRendering || containerColor == null) return original;
+        if (!isRendering || containerColor == 0) return original;
 
         return RenderUtil.modifyOutlineProviderColor(outlineProvider, containerColor);
     }
@@ -138,7 +121,7 @@ public abstract class MixinWorldRenderer {
         VertexConsumerProvider.Immediate immediate, VertexConsumer vertexConsumer, RenderLayer renderLayer,
         CallbackInfoReturnable<VertexConsumer> cir)
     {
-        if (!isRendering || containerColor == null) return;
+        if (!isRendering || containerColor == 0) return;
 
         var outlineConsumer = outlineProvider.getBuffer(renderLayer);
         cir.setReturnValue(renderLayer.hasCrumbling() ?

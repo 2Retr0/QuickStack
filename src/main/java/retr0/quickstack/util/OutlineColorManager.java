@@ -1,42 +1,49 @@
 package retr0.quickstack.util;
 
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.block.BlockState;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.ChestBlock;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.Pair;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import retr0.quickstack.QuickStack;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.BiConsumer;
 
 import static net.minecraft.block.DoubleBlockProperties.Type.FIRST;
 
 @Environment(EnvType.CLIENT)
-public class OutlineRenderManager {
+public final class OutlineColorManager {
     private static final long DURATION_MS = 5000L; // Interval (upon closing the current screen) to render outlines.
     private static final Integer[] COLORS = new Integer[]{ 0xDC315D, 0xE5AB4C, 0x6AD6A1, 0x3C62D5, 0xD34DC0, 0xFFFFFF };
 
-    public static final OutlineRenderManager INSTANCE = new OutlineRenderManager(MinecraftClient.getInstance());
+    private static OutlineColorManager instance;
 
-    private final FixedQueue<Integer> colorQueue = new FixedQueue<>(COLORS);
     private final MinecraftClient client;
-
-    public final HashMap<BlockPos, Pair<Integer, BlockState>> blockModelColorMap = new HashMap<>();
-    public final HashMap<BlockPos, Integer> blockEntityColorMap = new HashMap<>();
-    public final HashMap<Integer, Integer> slotColorMap = new HashMap<>();
+    private final FixedQueue<Integer> colorQueue = new FixedQueue<>(COLORS);
+    private final Object2IntMap<BlockPos> blockColorMap = new Object2IntOpenHashMap<>();
+    private final Int2IntOpenHashMap slotColorMap = new Int2IntOpenHashMap();
 
     private long lastStartedTimeMs = -1L;
     private boolean isRendering = false;
     private boolean waitForScreenClose = false;
 
-    private OutlineRenderManager(MinecraftClient client) {
-        this.client = client;
+    public static void register() {
+        if (OutlineColorManager.instance == null) {
+            instance = new OutlineColorManager(MinecraftClient.getInstance());
+            ClientTickEvents.START_WORLD_TICK.register(clientWorld -> instance.tick());
+        }
+    }
+
+    public static OutlineColorManager getInstance() {
+        return instance;
     }
 
     /**
@@ -51,7 +58,22 @@ public class OutlineRenderManager {
             stopRendering();
     }
 
-    public boolean isRendering() { return isRendering; }
+    public boolean isRendering() {
+        return isRendering;
+    }
+
+    public void forEachBlock(BiConsumer<? super BlockPos, ? super Integer> consumer) {
+        blockColorMap.forEach(consumer);
+    }
+
+    public int getBlockOutlineColor(BlockPos blockPos) {
+        return blockColorMap.getInt(blockPos);
+    }
+
+    public int getSlotOutlineColor(int slotId) {
+        return slotColorMap.get(slotId);
+    }
+
 
 
     // get colors
@@ -59,30 +81,19 @@ public class OutlineRenderManager {
         // If container already has color, get all slots and add color
         containerSlotMap.forEach((containerPos, associatedSlots) -> {
             QuickStack.LOGGER.info("Considering Pos: " + containerPos);
-            int color;
             var blockState = world.getBlockState(containerPos);
+            int color = blockColorMap.computeIfAbsent(containerPos, pos -> colorQueue.getNext());
 
-            switch (blockState.getRenderType()) {
-                case MODEL -> {
-                    color = blockModelColorMap.computeIfAbsent(containerPos,
-                        pos -> new Pair<>(colorQueue.getNext(), blockState)).getLeft();
-                }
-                case ENTITYBLOCK_ANIMATED -> {
-                    color = blockEntityColorMap.computeIfAbsent(containerPos, pos -> colorQueue.getNext());
-
-                    var block = blockState.getBlock();
-                    // Also update the color of the second chest if the container is a double chest.
-                    //   * Note: getFacing() points in the direction of the second chest for the double chest.
-                    if (block instanceof ChestBlock && ChestBlock.getDoubleBlockType(blockState) == FIRST) {
-                        blockEntityColorMap.put(containerPos.add(ChestBlock.getFacing(blockState).getVector()), color);
-                    }
-                }
-                default -> {
-                    QuickStack.LOGGER.error("Encountered unexpected render type while generating outline color mappings!");
-                    return;
-                }
+            // Also update the color of the second chest if the container is a double chest.
+            //   * Note: getFacing() points in the direction of the second chest for the double chest.
+            if (blockState.getRenderType() == BlockRenderType.ENTITYBLOCK_ANIMATED) {
+                var block = blockState.getBlock();
+                if (block instanceof ChestBlock && ChestBlock.getDoubleBlockType(blockState) == FIRST)
+                    blockColorMap.put(containerPos.add(ChestBlock.getFacing(blockState).getVector()), color);
             }
-            associatedSlots.forEach(slot -> slotColorMap.putIfAbsent(slot, color));
+
+            // Ensure color is not zero as that is reserved as the null value.
+            associatedSlots.forEach(slot -> slotColorMap.putIfAbsent((int) slot, color == 0 ? color + 1 : color));
         });
         startRendering();
     }
@@ -110,10 +121,13 @@ public class OutlineRenderManager {
      */
     private void stopRendering() {
         isRendering = false;
-        blockEntityColorMap.clear();
-        blockModelColorMap.clear();
+        blockColorMap.clear();
         slotColorMap.clear();
         colorQueue.reset();
+    }
+
+    private OutlineColorManager(MinecraftClient client) {
+        this.client = client;
     }
 
 

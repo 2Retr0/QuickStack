@@ -27,20 +27,25 @@ dependencies {
     // Fabric API. This is technically optional, but you probably want it anyway.
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
+    // ItemFavorites.
+    modCompileOnly "maven.modrinth:itemfavorites:${project.favorites_version}"
+    modImplementation "maven.modrinth:itemfavorites:${project.favorites_version}"
+    include "maven.modrinth:itemfavorites:${project.favorites_version}"
+
+    // CarrotConfig.
+    modCompileOnly "com.github.2Retr0:carrotconfig:1.19-SNAPSHOT"
+    modImplementation "com.github.2Retr0:carrotconfig:1.19-SNAPSHOT"
+    include "com.github.2Retr0:carrotconfig:1.19-SNAPSHOT"
+
     // Dev Environment Dependencies
-    modRuntimeOnly "maven.modrinth:modmenu:${project.mod_menu_version}"
+    modLocalRuntime "maven.modrinth:modmenu:${project.mod_menu_version}"
 
     modCompileOnly "maven.modrinth:sodium:${project.sodium_version}"
-    modRuntimeOnly "maven.modrinth:sodium:${project.sodium_version}"
-    modRuntimeOnly 'org.joml:joml:1.10.4'
+    modLocalRuntime "maven.modrinth:sodium:${project.sodium_version}"
 
-    modRuntimeOnly "maven.modrinth:iris:${project.iris_version}"
-    modRuntimeOnly 'org.anarres:jcpp:1.4.14'
-    modRuntimeOnly 'io.github.douira:glsl-transformer:2.0.0-pre8'
-
-    modCompileOnly "com.github.2Retr0:itemfavorites:1.19-SNAPSHOT"
-    modImplementation "com.github.2Retr0:itemfavorites:1.19-SNAPSHOT"
-    include "com.github.2Retr0:itemfavorites:1.19-SNAPSHOT"
+    modLocalRuntime "maven.modrinth:iris:${project.iris_version}"
+    modLocalRuntime 'org.anarres:jcpp:1.4.14'
+    modLocalRuntime 'io.github.douira:glsl-transformer:2.0.0-pre8'
 }
 
 processResources {

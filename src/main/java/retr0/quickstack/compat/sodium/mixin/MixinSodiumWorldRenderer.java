@@ -13,8 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import retr0.quickstack.QuickStackClient;
-import retr0.quickstack.util.OutlineRenderManager;
+import retr0.quickstack.util.OutlineColorManager;
 import retr0.quickstack.util.RenderUtil;
 
 import java.util.SortedSet;
@@ -23,7 +22,7 @@ import java.util.SortedSet;
 public abstract class MixinSodiumWorldRenderer {
     @Unique private static boolean isRendering;
     @Unique private static OutlineVertexConsumerProvider outlineProvider;
-    @Unique private static Integer containerColor;
+    @Unique private static int containerColor;
 
     /**
      * Caches the outline vertex consumer provider.
@@ -34,7 +33,7 @@ public abstract class MixinSodiumWorldRenderer {
         Camera camera, float tickDelta, CallbackInfo ci)
     {
         outlineProvider = bufferBuilders.getOutlineVertexConsumers();
-        isRendering = OutlineRenderManager.INSTANCE.isRendering();
+        isRendering = OutlineColorManager.getInstance().isRendering();
     }
 
 
@@ -51,7 +50,7 @@ public abstract class MixinSodiumWorldRenderer {
             ordinal = 0))
     private BlockPos cacheContainerColor(BlockPos original) {
         if (isRendering)
-            containerColor = OutlineRenderManager.INSTANCE.blockEntityColorMap.get(original);
+            containerColor = OutlineColorManager.getInstance().getBlockOutlineColor(original);
 
         return original; // No actual modification.
     }
@@ -74,7 +73,7 @@ public abstract class MixinSodiumWorldRenderer {
     private VertexConsumerProvider useOutlineProvider(
         VertexConsumerProvider original, MatrixStack matrices, BufferBuilderStorage bufferBuilders)
     {
-        if (!isRendering || containerColor == null) return original;
+        if (!isRendering || containerColor == 0) return original;
 
         return RenderUtil.modifyOutlineProviderColor(outlineProvider, containerColor);
     }
@@ -93,7 +92,7 @@ public abstract class MixinSodiumWorldRenderer {
         VertexConsumer vertexConsumer, VertexConsumerProvider.Immediate immediate, RenderLayer renderLayer,
         CallbackInfoReturnable<VertexConsumer> cir)
     {
-        if (!isRendering || containerColor == null) return;
+        if (!isRendering || containerColor == 0) return;
 
         var outlineConsumer = outlineProvider.getBuffer(renderLayer);
         cir.setReturnValue(renderLayer.hasCrumbling() ?

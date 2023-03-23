@@ -26,6 +26,6 @@ public class C2SPacketDepositRequest {
         MinecraftServer server, ServerPlayerEntity player, ServerPlayNetworkHandler handler, PacketByteBuf buf,
         PacketSender responseSender)
     {
-        server.execute(() -> QuickStackManager.INSTANCE.quickStack(player));
+        server.execute(() -> QuickStackManager.getInstance().quickStack(player));
     }
 }
