@@ -4,11 +4,8 @@ import retr0.carrotconfig.config.CarrotConfig;
 
 public class QuickStackConfig extends CarrotConfig {
     @Entry
-    public static boolean roundedIconBackground = false;
+    public static boolean allowHotbarQuickStack = false;
 
     @Entry(min = 0)
-    public static float maxInhabitedTime = 120.0f;
-
-    @Entry(min = 0)
-    public static float toastCooldownTime = 30.0f;
+    public static int containerSearchRadius = 8;
 }

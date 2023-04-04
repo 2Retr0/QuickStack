@@ -6,18 +6,16 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.block.BlockRenderType;
 import net.minecraft.block.ChestBlock;
+import net.minecraft.block.DoubleBlockProperties;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import retr0.quickstack.QuickStack;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
-
-import static net.minecraft.block.DoubleBlockProperties.Type.FIRST;
 
 @Environment(EnvType.CLIENT)
 public final class OutlineColorManager {
@@ -35,6 +33,12 @@ public final class OutlineColorManager {
     private boolean isRendering = false;
     private boolean waitForScreenClose = false;
 
+    private OutlineColorManager(MinecraftClient client) {
+        this.client = client;
+    }
+
+
+
     public static void register() {
         if (OutlineColorManager.instance == null) {
             instance = new OutlineColorManager(MinecraftClient.getInstance());
@@ -42,9 +46,13 @@ public final class OutlineColorManager {
         }
     }
 
+
+
     public static OutlineColorManager getInstance() {
         return instance;
     }
+
+
 
     /**
      * Updates timers for rendering outlines/resetting mappings. Should be called every world tick.
@@ -58,17 +66,25 @@ public final class OutlineColorManager {
             stopRendering();
     }
 
+
+
     public boolean isRendering() {
         return isRendering;
     }
+
+
 
     public void forEachBlock(BiConsumer<? super BlockPos, ? super Integer> consumer) {
         blockColorMap.forEach(consumer);
     }
 
+
+
     public int getBlockOutlineColor(BlockPos blockPos) {
         return blockColorMap.getInt(blockPos);
     }
+
+
 
     public int getSlotOutlineColor(int slotId) {
         return slotColorMap.get(slotId);
@@ -76,21 +92,16 @@ public final class OutlineColorManager {
 
 
 
-    // get colors
     public void addMappings(World world, Map<BlockPos, List<Integer>> containerSlotMap) {
         // If container already has color, get all slots and add color
         containerSlotMap.forEach((containerPos, associatedSlots) -> {
-            QuickStack.LOGGER.info("Considering Pos: " + containerPos);
             var blockState = world.getBlockState(containerPos);
-            int color = blockColorMap.computeIfAbsent(containerPos, pos -> colorQueue.getNext());
+            var color = blockColorMap.computeIfAbsent(containerPos, pos -> colorQueue.getNext());
 
-            // Also update the color of the second chest if the container is a double chest.
+            // Also include second chest if block is a double chest.
             //   * Note: getFacing() points in the direction of the second chest for the double chest.
-            if (blockState.getRenderType() == BlockRenderType.ENTITYBLOCK_ANIMATED) {
-                var block = blockState.getBlock();
-                if (block instanceof ChestBlock && ChestBlock.getDoubleBlockType(blockState) == FIRST)
-                    blockColorMap.put(containerPos.add(ChestBlock.getFacing(blockState).getVector()), color);
-            }
+            if (blockState.getBlock() instanceof ChestBlock && ChestBlock.getDoubleBlockType(blockState) != DoubleBlockProperties.Type.SINGLE)
+                blockColorMap.putIfAbsent(containerPos.add(ChestBlock.getFacing(blockState).getVector()), color);
 
             // Ensure color is not zero as that is reserved as the null value.
             associatedSlots.forEach(slot -> slotColorMap.putIfAbsent((int) slot, color == 0 ? color + 1 : color));
@@ -125,12 +136,6 @@ public final class OutlineColorManager {
         slotColorMap.clear();
         colorQueue.reset();
     }
-
-    private OutlineColorManager(MinecraftClient client) {
-        this.client = client;
-    }
-
-
 
     /**
      * A fixed-size queue of entries of which can be circularly-iterated.

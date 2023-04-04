@@ -20,8 +20,7 @@ import static retr0.quickstack.QuickStack.MOD_ID;
 
 @Mixin(InventoryScreen.class)
 public abstract class MixinInventoryScreen extends AbstractInventoryScreen<PlayerScreenHandler> {
-    @Unique private static final Identifier QUICK_STACK_BUTTON_TEXTURE =
-        new Identifier(MOD_ID, "textures/gui/quick_stack_button.png");
+    @Unique private static final Identifier QUICK_STACK_BUTTON_TEXTURE = new Identifier(MOD_ID, "textures/gui/quick_stack_button.png");
 
     @Unique private ButtonWidget quickStackButton;
 
@@ -61,7 +60,7 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
         int x = this.x + 128, y = height / 2 - 22;
         return button -> {
             original.onPress(button);
-            quickStackButton.setPos(x, y);
+            quickStackButton.setPosition(x, y);
         };
     }
 

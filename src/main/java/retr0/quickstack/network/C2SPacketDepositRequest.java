@@ -8,6 +8,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
+import retr0.quickstack.config.QuickStackConfig;
 import retr0.quickstack.util.QuickStackManager;
 
 import static retr0.quickstack.QuickStack.MOD_ID;
@@ -26,6 +27,7 @@ public class C2SPacketDepositRequest {
         MinecraftServer server, ServerPlayerEntity player, ServerPlayNetworkHandler handler, PacketByteBuf buf,
         PacketSender responseSender)
     {
-        server.execute(() -> QuickStackManager.getInstance().quickStack(player));
+        server.execute(() -> QuickStackManager.getInstance().quickStack(
+                player, QuickStackConfig.containerSearchRadius, QuickStackConfig.allowHotbarQuickStack));
     }
 }

@@ -1,6 +1,7 @@
 package retr0.quickstack;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.gui.DrawableHelper;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.toast.Toast;
 import net.minecraft.client.toast.ToastManager;
@@ -30,26 +31,22 @@ public class QuickStackToast implements Toast {
 
 
 
+    private void addDepositResult(int depositCount, int containerCount, List<IconPair> iconMappings) {
+        this.totalDepositCount += depositCount;
+        this.totalContainerCount += containerCount;
+        this.iconMappings.addAll(iconMappings);
+
+        justUpdated = true;
+    }
+
+
+
     public static void show(ToastManager manager, int depositCount, int containerCount, List<IconPair> iconMappings) {
         var quickStackToast = manager.getToast(QuickStackToast.class, TYPE);
         if (quickStackToast == null)
             manager.add(new QuickStackToast(depositCount, containerCount, iconMappings));
         else
             quickStackToast.addDepositResult(depositCount, containerCount, iconMappings);
-    }
-
-
-
-    private static Text getPluralityTranslation(String dictKey, int valueAmount) {
-        return Text.translatable(MOD_ID + ".dict." + dictKey + "." + (valueAmount == 1 ? "singular" : "plural"));
-    }
-
-
-
-    private static Text getDescription(int depositCount, int containerCount) {
-        return Text.translatable(MOD_ID + ".toast.description",
-            depositCount, getPluralityTranslation("item", depositCount),
-            containerCount, getPluralityTranslation("chest", containerCount));
     }
 
 
@@ -68,7 +65,7 @@ public class QuickStackToast implements Toast {
         RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
 
         // Draw background
-        manager.drawTexture(matrices, 0, 0, 0, 32, this.getWidth(), this.getHeight());
+        DrawableHelper.drawTexture(matrices, 0, 0, 0, 32, this.getWidth(), this.getHeight());
 
         // Draw description
         var description = getDescription(totalDepositCount, totalContainerCount);
@@ -77,29 +74,32 @@ public class QuickStackToast implements Toast {
         var iconMapping = iconMappings.get(
             (int)(startTime / Math.max(1L, DURATION_MS / iconMappings.size()) % iconMappings.size()));
 
-        var matrixStack = RenderSystem.getModelViewStack();
         // Draw current container icon
-        matrixStack.push();
-        matrixStack.scale(0.6f, 0.6f, 1.0f);
+        matrices.push();
+        matrices.scale(0.6f, 0.6f, 1.0f);
         RenderSystem.applyModelViewMatrix();
-        manager.getClient().getItemRenderer().renderInGui(iconMapping.containerIcon(), 3, 3);
-        matrixStack.pop();
+        manager.getClient().getItemRenderer().renderInGui(matrices, iconMapping.containerIcon(), 3, 3);
+        matrices.pop();
 
         // Draw current item icon
         RenderSystem.applyModelViewMatrix();
-        manager.getClient().getItemRenderer().renderInGui(iconMapping.itemIcon(), 8, 8);
+        manager.getClient().getItemRenderer().renderInGui(matrices, iconMapping.itemIcon(), 8, 8);
 
         return startTime - lastStartedTimeMs >= DURATION_MS ? Toast.Visibility.HIDE : Toast.Visibility.SHOW;
     }
 
 
 
-    private void addDepositResult(int depositCount, int containerCount, List<IconPair> iconMappings) {
-        this.totalDepositCount += depositCount;
-        this.totalContainerCount += containerCount;
-        this.iconMappings.addAll(iconMappings);
+    private static Text getDescription(int depositCount, int containerCount) {
+        return Text.translatable(MOD_ID + ".toast.description",
+            depositCount, getPluralityTranslation("item", depositCount),
+            containerCount, getPluralityTranslation("chest", containerCount));
+    }
 
-        justUpdated = true;
+
+
+    private static Text getPluralityTranslation(String dictKey, int valueAmount) {
+        return Text.translatable(MOD_ID + ".dict." + dictKey + "." + (valueAmount == 1 ? "singular" : "plural"));
     }
 
     /**

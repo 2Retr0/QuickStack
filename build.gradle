@@ -28,9 +28,9 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     // ItemFavorites.
-    modCompileOnly "maven.modrinth:itemfavorites:${project.favorites_version}"
-    modImplementation "maven.modrinth:itemfavorites:${project.favorites_version}"
-    include "maven.modrinth:itemfavorites:${project.favorites_version}"
+    modCompileOnly "maven.modrinth:itemfavorites:${project.itemfavorites_version}"
+    modImplementation "maven.modrinth:itemfavorites:${project.itemfavorites_version}"
+    include "maven.modrinth:itemfavorites:${project.itemfavorites_version}"
 
     // CarrotConfig.
     modCompileOnly "com.github.2Retr0:carrotconfig:1.19-SNAPSHOT"
@@ -38,7 +38,7 @@ dependencies {
     include "com.github.2Retr0:carrotconfig:1.19-SNAPSHOT"
 
     // Dev Environment Dependencies
-    modLocalRuntime "maven.modrinth:modmenu:${project.mod_menu_version}"
+    modLocalRuntime "maven.modrinth:modmenu:${project.modmenu_version}"
 
     modCompileOnly "maven.modrinth:sodium:${project.sodium_version}"
     modLocalRuntime "maven.modrinth:sodium:${project.sodium_version}"
@@ -70,7 +70,7 @@ java {
 
 jar {
     from("LICENSE") {
-        rename { "${it}_${project.archivesBaseName}"}
+        rename { "${it}_${archivesBaseName}"}
     }
 }
 

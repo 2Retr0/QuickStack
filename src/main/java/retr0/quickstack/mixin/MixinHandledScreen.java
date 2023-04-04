@@ -22,12 +22,11 @@ public abstract class MixinHandledScreen extends Screen {
         method = "render",
         at = @At(
             value = "INVOKE",
-            target = "Lcom/mojang/blaze3d/systems/RenderSystem;setShader(Ljava/util/function/Supplier;)V",
+            target = "Lnet/minecraft/client/gui/screen/ingame/HandledScreen;isPointOverSlot(Lnet/minecraft/screen/slot/Slot;DD)Z",
             shift = At.Shift.AFTER),
         locals = LocalCapture.CAPTURE_FAILSOFT)
     private void renderSlotOutline(
-        MatrixStack matrices, int mouseX, int mouseY, float delta, CallbackInfo ci, int i, int j,
-        MatrixStack matrixStack, int k, Slot slot)
+        MatrixStack matrices, int mouseX, int mouseY, float delta, CallbackInfo ci, int i, int j, int k, Slot slot)
     {
         if (!(slot.inventory instanceof PlayerInventory)) return;
 

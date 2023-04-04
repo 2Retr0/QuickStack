@@ -5,5 +5,14 @@
     "quickstack.dict.item.singular": "item",
     "quickstack.dict.item.plural": "items",
     "quickstack.dict.chest.singular": "chest",
-    "quickstack.dict.chest.plural": "chests"
+    "quickstack.dict.chest.plural": "chests",
+
+    "quickstack.carrotconfig.title": "QuickStack Configuration!",
+    "quickstack.carrotconfig.title.name": "QuickStack",
+
+    "quickstack.carrotconfig.allowHotbarQuickStack.name": "Allow Hotbar Quick Stack",
+    "quickstack.carrotconfig.allowHotbarQuickStack.tooltip": "Denotes whether items in the hotbar should be quick stacked.",
+
+    "quickstack.carrotconfig.containerSearchRadius.name": "Container Search Radius",
+    "quickstack.carrotconfig.containerSearchRadius.tooltip": "Denotes the distance (in blocks) to search for containers when quick stacking."
 }

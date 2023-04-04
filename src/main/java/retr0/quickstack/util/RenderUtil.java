@@ -21,6 +21,10 @@ import static retr0.quickstack.QuickStack.MOD_ID;
 public final class RenderUtil {
     private static final Identifier SLOT_OUTLINE_TEXTURE = new Identifier(MOD_ID, "textures/gui/slot_outline.png");
 
+    private RenderUtil() { }
+
+
+
     /**
      * Changes the target color of an {@link OutlineVertexConsumerProvider} for a given color.
      * @param outlineProvider The target {@link OutlineVertexConsumerProvider}.
@@ -40,8 +44,8 @@ public final class RenderUtil {
 
 
     public static void drawBlockModelOutlines(
-            MinecraftClient client, MatrixStack matrices, Camera camera, ClientWorld world,
-            OutlineVertexConsumerProvider outlineProvider)
+        MinecraftClient client, MatrixStack matrices, Camera camera, ClientWorld world,
+        OutlineVertexConsumerProvider outlineProvider)
     {
         var cameraPos = camera.getPos();
         var cameraX = cameraPos.getX();
@@ -95,6 +99,4 @@ public final class RenderUtil {
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         RenderSystem.disableBlend();
     }
-
-    private RenderUtil() { }
 }

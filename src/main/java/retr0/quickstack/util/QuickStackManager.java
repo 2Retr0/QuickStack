@@ -1,12 +1,9 @@
 package retr0.quickstack.util;
 
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.ChestBlock;
 import net.minecraft.block.DoubleBlockProperties;
 import net.minecraft.block.entity.LootableContainerBlockEntity;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
@@ -30,16 +27,15 @@ import retr0.quickstack.network.S2CPacketToastResult;
 import java.util.*;
 
 public final class QuickStackManager {
-    private static QuickStackManager instance;
-
-    private static final int PATHFINDING_RADIUS = 8;
-    private static final int SEARCH_RADIUS = 8;
     private static final int MAX_STACK_SPREAD = 3;
     private static final int SOUND_PLAY_DELAY_MS = 40;
-    private static final boolean ALLOW_HOTBAR = false;
-
+    private static QuickStackManager instance;
     private final Deque<PlayerEntity> queuedSoundInstances = new ArrayDeque<>();
     private long previousSoundPlayTimeMs = -1;
+
+    private QuickStackManager() { }
+
+
 
     public static void register() {
         if (QuickStackManager.instance == null) {
@@ -48,29 +44,10 @@ public final class QuickStackManager {
         }
     }
 
+
+
     public static QuickStackManager getInstance() {
         return instance;
-    }
-
-    public void tick() {
-        var currentTimeMs = Util.getMeasuringTimeMs();
-        if (queuedSoundInstances.isEmpty() || currentTimeMs - previousSoundPlayTimeMs < SOUND_PLAY_DELAY_MS)
-            return;
-
-        playSound(queuedSoundInstances.poll(), 1);
-        previousSoundPlayTimeMs = currentTimeMs;
-    }
-
-
-
-    // TODO: Redo sound logic in some future version! Using a queue for **all** players on the server is very bad!
-    private void playSound(PlayerEntity player, int times) {
-        var emitPos = player.getEyePos().subtract(player.getRotationVector().multiply(3));
-        player.world.playSound(null, emitPos.x, emitPos.y, emitPos.z, SoundEvents.BLOCK_BARREL_CLOSE,
-            SoundCategory.BLOCKS, 0.5f, player.world.random.nextFloat() * 0.1f + 0.9f);
-
-        // Add remaining play times to the sound queue to be played at an offset.
-        for (var i = 0; i < times - 1; ++i) queuedSoundInstances.add(player);
     }
 
 
@@ -107,31 +84,66 @@ public final class QuickStackManager {
                 // We add the inventory/double inventory for chest blocks, so long as the chest is not the "second
                 // chest" of a double chest (to prevent double counting).
                 if (block instanceof ChestBlock chestBlock) {
-                    if (ChestBlock.getDoubleBlockType(blockState) != DoubleBlockProperties.Type.SECOND)
+                    if (ChestBlock.getDoubleBlockType(blockState) == DoubleBlockProperties.Type.FIRST)
                         inventory = ChestBlock.getInventory(chestBlock, blockState, world, mutablePos, false);
                     else continue;
                 }
                 nearbyContainers.add(new InventoryInfo(inventory, new BlockPos(mutablePos), blockIcon));
             }
         }
+
+//        var entitySearchBox = Box.of(pos.toCenterPos(), radius * 2, radius * 2, radius * 2);
+//        var nearbyInventoryEntities = world.getEntitiesByType(
+//            TypeFilter.instanceOf(AbstractHorseEntity.class), entitySearchBox, abstractHorseEntity -> true);
+//
+//        nearbyInventoryEntities.forEach(entity -> {
+//            var inventory = ((AccessorAbstractHorseEntity) entity).getItems();
+//            nearbyContainers.add(new InventoryInfo(inventory, entity.getBlockPos(), new ItemStack(Items.SADDLE)));
+//        });
+
         return nearbyContainers;
     }
 
 
 
-    private HashMap<Item, Queue<InventoryInfo>> generateMappings(ServerPlayerEntity player) {
+    public void tick() {
+        var currentTimeMs = Util.getMeasuringTimeMs();
+        if (queuedSoundInstances.isEmpty() || currentTimeMs - previousSoundPlayTimeMs < SOUND_PLAY_DELAY_MS)
+            return;
+
+        playSound(queuedSoundInstances.poll(), 1);
+        previousSoundPlayTimeMs = currentTimeMs;
+    }
+
+
+
+    // TODO: Redo sound logic in some future version! Using a queue for **all** players on the server is very bad!
+    private void playSound(PlayerEntity player, int times) {
+        var emitPos = player.getEyePos().subtract(player.getRotationVector().multiply(3));
+        player.world.playSound(null, emitPos.x, emitPos.y, emitPos.z, SoundEvents.BLOCK_BARREL_CLOSE,
+            SoundCategory.BLOCKS, 0.5f, player.world.random.nextFloat() * 0.1f + 0.9f);
+
+        // Add remaining play times to the sound queue to be played at an offset.
+        for (var i = 0; i < times - 1; ++i) queuedSoundInstances.add(player);
+    }
+
+
+
+    /**
+     * @return A mapping between each item in a player's inventory and a queue for each container (within a radius) that
+     *         contains the item.
+     */
+    private HashMap<Item, Queue<InventoryInfo>> generateMappings(ServerPlayerEntity player, int searchRadius) {
         var itemContainerMap = new HashMap<Item, Queue<InventoryInfo>>();
         var playerInventory = player.getInventory();
         var serverWorld = player.getWorld();
 
-        var nearbyInventories = findNearbyInventories(serverWorld, player.getBlockPos(), SEARCH_RADIUS);
+        var nearbyInventories = findNearbyInventories(serverWorld, player.getBlockPos(), searchRadius);
         // For each unique item in the player's inventory, create a corresponding priority queue in the
         // container map prioritizing the inventory with the most free slots (with respect to the item).
         var uniquePlayerItems = InventoryUtil.getUniqueItems(playerInventory, 9, 35);
-        uniquePlayerItems.forEach(item -> {
-            itemContainerMap.put(item, new PriorityQueue<>(Comparator.comparingInt(
-                inventoryInfo -> -InventoryUtil.getAvailableSlots(inventoryInfo.inventory(), item))));
-        });
+        uniquePlayerItems.forEach(item -> itemContainerMap.put(item, new PriorityQueue<>(Comparator.comparingInt(
+            inventoryInfo -> -InventoryUtil.getAvailableSlots(inventoryInfo.inventory(), item)))));
 
         if (itemContainerMap.isEmpty()) return itemContainerMap;
 
@@ -143,8 +155,7 @@ public final class QuickStackManager {
 
             intersection.retainAll(uniquePlayerItems);
             intersection.forEach(item -> {
-                if (itemContainerMap.containsKey(item))
-                    itemContainerMap.get(item).add(inventoryInfo);
+                if (itemContainerMap.containsKey(item)) itemContainerMap.get(item).add(inventoryInfo);
             });
         });
         return itemContainerMap;
@@ -153,24 +164,22 @@ public final class QuickStackManager {
 
 
     /**
-     * Initiates a quick stack operation for the specified player considering all chests within the specified radius
-     * for depositing.
+     * Initiates a quick stack operation on a player's inventory between all chests in the specified radius.
      */
-    public void quickStack(ServerPlayerEntity player) {
-        var itemContainerMap = generateMappings(player);
+    public void quickStack(ServerPlayerEntity player, int radius, boolean includeHotbar) {
+        var itemContainerMap = generateMappings(player, radius);
+        var pathFinder = new PathFinder(player.getWorld(), player.getBlockPos(), radius);
         var playerInventory = player.getInventory();
-        var serverWorld = player.getWorld();
 
         if (itemContainerMap.isEmpty()) return;
 
         // For each item in the player's *main* inventory try to insert the item into the inventory of the associated
         // queue.
-        var itemsDeposited = 0;
-        var containersUsed = 0;
+        int itemsDeposited = 0, containersUsed = 0;
         var depositResultPacket = new S2CPacketDepositResult();
         var toastResultPacket = new S2CPacketToastResult();
-        var pathFinder = new PathFinder(serverWorld, PATHFINDING_RADIUS, player.getBlockPos());
-        for (var slot = PlayerInventory.getHotbarSize(); slot < PlayerInventory.MAIN_SIZE; ++slot) {
+        var startingSlot = includeHotbar ? 0 : PlayerInventory.getHotbarSize();
+        for (var slot = startingSlot; slot < PlayerInventory.MAIN_SIZE; ++slot) {
             var itemStack = playerInventory.getStack(slot);
             var containerQueue = itemContainerMap.get(itemStack.getItem());
             var stackSpread = 1;
@@ -219,10 +228,6 @@ public final class QuickStackManager {
             playSound(player, Math.min(containersUsed, 2));
         }
     }
-
-    private QuickStackManager() { }
-
-
 
     /**
      * Record containing an inventory, the {@link BlockPos} of its respective block entity, and an {@link ItemStack}
