@@ -11,8 +11,6 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Pair;
-import net.minecraft.util.math.BlockPos;
-import retr0.quickstack.QuickStack;
 import retr0.quickstack.QuickStackToast;
 import retr0.quickstack.QuickStackToast.IconPair;
 
@@ -26,68 +24,25 @@ import static retr0.quickstack.QuickStack.MOD_ID;
 public class S2CPacketToastResult {
     public static final Identifier TOAST_RESULT_ID = new Identifier(MOD_ID, "quick_stack_response");
 
-    private final Map<Item, Pair<Integer, ItemStack>> itemUsageMap = new HashMap<>();
-    private final Set<BlockPos> usedContainers = new HashSet<>();
-
-    private int totalDepositAmount = 0;
-
-    /**
-     * Adds a specified amount to the deposited total entry of an item creating a new entry if needed.
-     * @param depositedItem The specified item.
-     * @param depositedCount The amount to add to the item entry's deposited total.
-     * @param containerIcon An {@link ItemStack}, representing the deposited container's icon, to bind to
-     *                      the item entry if it does not yet exist.
-     */
-    public void updateDepositAmount(
-        Item depositedItem, int depositedCount, BlockPos containerPos, ItemStack containerIcon)
-    {
-        if (itemUsageMap.containsKey(depositedItem)) {
-            var itemUsage = itemUsageMap.get(depositedItem);
-            itemUsage.setLeft(itemUsage.getLeft() + depositedCount);
-        } else
-            itemUsageMap.put(depositedItem, new Pair<>(depositedCount, containerIcon));
-
-        totalDepositAmount += depositedCount;
-        usedContainers.add(containerPos);
-    }
-
-
-
-    /**
-     * @return A sorted {@code List} (in descending order) containing the icons for the top {@code n} most-deposited
-     * items along with the icons for their respective container.
-     */
-    @SuppressWarnings("SameParameterValue")
-    private List<IconPair> getTopNDeposited(int n) {
-        var topUsedList = new ArrayList<IconPair>(n);
-        var topUsedQueue = new PriorityQueue<Pair<Integer, IconPair>>(
-            Comparator.comparingInt(info -> -info.getLeft()));
-
-        // Create a priority queue of all icon mappings in the map sorted by deposited count.
-        itemUsageMap.forEach((item, usageInfo) ->
-            topUsedQueue.add(new Pair<>(usageInfo.getLeft(), new IconPair(item.getDefaultStack(), usageInfo.getRight()))));
-
-        // Create a list containing the top 'n' mappings by polling the priority queue.
-        for (var i = 0; i < n && !topUsedQueue.isEmpty(); ++i)
-            topUsedList.add(topUsedQueue.poll().getRight());
-        return topUsedList;
-    }
-
-
-
     /**
      * Sends a {@link S2CPacketToastResult} packet to the client.
      */
-    public static void send(S2CPacketToastResult toastResult, ServerPlayerEntity player) {
-        var totalUsedContainers = toastResult.usedContainers.size();
-        var topDeposited = toastResult.getTopNDeposited(3);
-        var buf = PacketByteBufs.create();
+    public static void send(
+        Map<Item, Pair<Integer, ItemStack>> itemUsageMap, int totalItemsDeposited, int totalContainersUsed,
+        ServerPlayerEntity player)
+    {
+        var topDeposited = itemUsageMap.entrySet().stream()
+            .sorted(Comparator.comparingInt(entry -> -entry.getValue().getLeft()))
+            .limit(3)
+            .map(entry -> new IconPair(entry.getKey().getDefaultStack(), entry.getValue().getRight()))
+            .toList();
 
-        //   * Note: In the case where an item is deposited into multiple containers, the container icon for the toast
-        //           would be the highest priority container for the item (denoted by the entry in the item->container
-        //           mappings).
-        buf.writeInt(toastResult.totalDepositAmount);
-        buf.writeByte(totalUsedContainers);
+        var buf = PacketByteBufs.create();
+        // Note: In the case where an item is deposited into multiple containers, the container icon for the toast
+        //       would be the highest priority container for the item (denoted by the entry in the item->container
+        //       mappings).
+        buf.writeInt(totalItemsDeposited);
+        buf.writeByte(totalContainersUsed);
         buf.writeByte(topDeposited.size());
         topDeposited.forEach(iconPair -> {
             buf.writeItemStack(iconPair.itemIcon());

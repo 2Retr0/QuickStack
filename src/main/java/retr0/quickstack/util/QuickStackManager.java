@@ -1,10 +1,11 @@
 package retr0.quickstack.util;
 
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.block.ChestBlock;
 import net.minecraft.block.DoubleBlockProperties;
 import net.minecraft.block.entity.LootableContainerBlockEntity;
-import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.RideableInventory;
+import net.minecraft.entity.passive.AbstractHorseEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SidedInventory;
@@ -14,8 +15,10 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.CuboidBlockIterator;
-import net.minecraft.util.Util;
+import net.minecraft.util.Pair;
+import net.minecraft.util.TypeFilter;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import retr0.quickstack.QuickStack;
@@ -23,15 +26,13 @@ import retr0.quickstack.compat.itemfavorites.CompatItemFavorites;
 import retr0.quickstack.mixin.AccessorLootableContainerBlockEntity;
 import retr0.quickstack.network.S2CPacketDepositResult;
 import retr0.quickstack.network.S2CPacketToastResult;
+import retr0.quickstack.util.InventoryUtil.InventoryInfo;
 
 import java.util.*;
 
 public final class QuickStackManager {
     private static final int MAX_STACK_SPREAD = 3;
-    private static final int SOUND_PLAY_DELAY_MS = 40;
     private static QuickStackManager instance;
-    private final Deque<PlayerEntity> queuedSoundInstances = new ArrayDeque<>();
-    private long previousSoundPlayTimeMs = -1;
 
     private QuickStackManager() { }
 
@@ -40,7 +41,6 @@ public final class QuickStackManager {
     public static void register() {
         if (QuickStackManager.instance == null) {
             instance = new QuickStackManager();
-            ServerTickEvents.START_WORLD_TICK.register(clientWorld -> instance.tick());
         }
     }
 
@@ -61,7 +61,7 @@ public final class QuickStackManager {
      * @return A {@code List} containing the found block entities as {@link InventoryInfo}s.
      */
     public static List<InventoryInfo> findNearbyInventories(World world, BlockPos pos, int radius) {
-        var nearbyContainers = new ArrayList<InventoryInfo>();
+        var nearbyInventories = new ArrayList<InventoryInfo>();
         var mutablePos = new BlockPos.Mutable();
         var cuboidBlockIterator = new CuboidBlockIterator(
             pos.getX() - radius, pos.getY() - radius, pos.getZ() - radius,
@@ -71,60 +71,36 @@ public final class QuickStackManager {
             mutablePos.set(cuboidBlockIterator.getX(), cuboidBlockIterator.getY(), cuboidBlockIterator.getZ());
             var blockEntity = world.getBlockEntity(mutablePos);
 
-            // Note: LootTableId is null if the container is player-placed or has been opened by a player.
+            // Note: container.getLootTableId() is null if the container is player-placed or has been opened by a player.
             if (blockEntity instanceof AccessorLootableContainerBlockEntity container
                 && !(blockEntity instanceof SidedInventory)
                 && container.getLootTableId() == null)
             {
-                var blockState = world.getBlockState(mutablePos);
-                var block = blockState.getBlock();
-                var inventory = (Inventory) container;
-                var blockIcon = new ItemStack(block.asItem());
-
-                // We add the inventory/double inventory for chest blocks, so long as the chest is not the "second
-                // chest" of a double chest (to prevent double counting).
-                if (block instanceof ChestBlock chestBlock) {
-                    if (ChestBlock.getDoubleBlockType(blockState) == DoubleBlockProperties.Type.FIRST)
-                        inventory = ChestBlock.getInventory(chestBlock, blockState, world, mutablePos, false);
-                    else continue;
+                var blockState = blockEntity.getCachedState();
+                // We add the inventory/double inventory for chest blocks, so long as the chest can be opened and is not
+                // the "second chest" of a double chest (to prevent double counting).
+                if (blockState.getBlock() instanceof ChestBlock
+                    && (ChestBlock.isChestBlocked(world, mutablePos)
+                    || ChestBlock.getDoubleBlockType(blockState) == DoubleBlockProperties.Type.SECOND))
+                {
+                    continue;
                 }
-                nearbyContainers.add(new InventoryInfo(inventory, new BlockPos(mutablePos), blockIcon));
+                nearbyInventories.add(InventoryInfo.create(blockEntity));
             }
         }
 
-//        var entitySearchBox = Box.of(pos.toCenterPos(), radius * 2, radius * 2, radius * 2);
-//        var nearbyInventoryEntities = world.getEntitiesByType(
-//            TypeFilter.instanceOf(AbstractHorseEntity.class), entitySearchBox, abstractHorseEntity -> true);
-//
-//        nearbyInventoryEntities.forEach(entity -> {
-//            var inventory = ((AccessorAbstractHorseEntity) entity).getItems();
-//            nearbyContainers.add(new InventoryInfo(inventory, entity.getBlockPos(), new ItemStack(Items.SADDLE)));
-//        });
+        var entitySearchBox = Box.of(pos.toCenterPos(), radius * 2, radius * 2, radius * 2);
+        world.getEntitiesByType(TypeFilter.instanceOf(Entity.class), entitySearchBox, entity -> {
+            return entity instanceof RideableInventory || entity instanceof Inventory;
+        }).forEach(entity -> {
+            if (entity instanceof AbstractHorseEntity) // {
+                nearbyInventories.add(InventoryInfo.create((AbstractHorseEntity) entity));
+            // } else if (entity instanceof Inventory) {
+            //     nearbyInventories.add(InventoryInfo.create((Inventory) entity));
+            // }
+        });
 
-        return nearbyContainers;
-    }
-
-
-
-    public void tick() {
-        var currentTimeMs = Util.getMeasuringTimeMs();
-        if (queuedSoundInstances.isEmpty() || currentTimeMs - previousSoundPlayTimeMs < SOUND_PLAY_DELAY_MS)
-            return;
-
-        playSound(queuedSoundInstances.poll(), 1);
-        previousSoundPlayTimeMs = currentTimeMs;
-    }
-
-
-
-    // TODO: Redo sound logic in some future version! Using a queue for **all** players on the server is very bad!
-    private void playSound(PlayerEntity player, int times) {
-        var emitPos = player.getEyePos().subtract(player.getRotationVector().multiply(3));
-        player.world.playSound(null, emitPos.x, emitPos.y, emitPos.z, SoundEvents.BLOCK_BARREL_CLOSE,
-            SoundCategory.BLOCKS, 0.5f, player.world.random.nextFloat() * 0.1f + 0.9f);
-
-        // Add remaining play times to the sound queue to be played at an offset.
-        for (var i = 0; i < times - 1; ++i) queuedSoundInstances.add(player);
+        return nearbyInventories;
     }
 
 
@@ -143,7 +119,7 @@ public final class QuickStackManager {
         // container map prioritizing the inventory with the most free slots (with respect to the item).
         var uniquePlayerItems = InventoryUtil.getUniqueItems(playerInventory, 9, 35);
         uniquePlayerItems.forEach(item -> itemContainerMap.put(item, new PriorityQueue<>(Comparator.comparingInt(
-            inventoryInfo -> -InventoryUtil.getAvailableSlots(inventoryInfo.inventory(), item)))));
+            inventoryInfo -> -InventoryUtil.getAvailableSlots(inventoryInfo.sourceInventory(), item)))));
 
         if (itemContainerMap.isEmpty()) return itemContainerMap;
 
@@ -151,7 +127,7 @@ public final class QuickStackManager {
         // an item which exists in said inventory.
         nearbyInventories.forEach(inventoryInfo -> {
             // Only consider the intersection of items between the target inventory and player inventory.
-            var intersection = InventoryUtil.getUniqueItems(inventoryInfo.inventory());
+            var intersection = InventoryUtil.getUniqueItems(inventoryInfo.sourceInventory());
 
             intersection.retainAll(uniquePlayerItems);
             intersection.forEach(item -> {
@@ -175,63 +151,70 @@ public final class QuickStackManager {
 
         // For each item in the player's *main* inventory try to insert the item into the inventory of the associated
         // queue.
-        int itemsDeposited = 0, containersUsed = 0;
-        var depositResultPacket = new S2CPacketDepositResult();
-        var toastResultPacket = new S2CPacketToastResult();
+        int totalItemsDeposited = 0;
+        var slotUsageMap = new HashMap<Integer, List<InventoryInfo>>();
+        var itemUsageMap = new HashMap<Item, Pair<Integer, ItemStack>>();
+        var containersUsed = new HashSet<InventoryInfo>();
         var startingSlot = includeHotbar ? 0 : PlayerInventory.getHotbarSize();
-        for (var slot = startingSlot; slot < PlayerInventory.MAIN_SIZE; ++slot) {
-            var itemStack = playerInventory.getStack(slot);
-            var containerQueue = itemContainerMap.get(itemStack.getItem());
-            var stackSpread = 1;
+        for (var slotId = startingSlot; slotId < PlayerInventory.MAIN_SIZE; ++slotId) {
+            var itemStack = playerInventory.getStack(slotId);
+            var item = itemStack.getItem();
+            var containerQueue = itemContainerMap.get(item);
+            var associatedInventories = new ArrayList<InventoryInfo>(1);
+            int stackSpread = 1, itemsDeposited = 0;
 
             if (containerQueue == null || CompatItemFavorites.isFavorite(itemStack)) continue;
 
             while (itemStack.getCount() != 0 && !containerQueue.isEmpty() && stackSpread++ < MAX_STACK_SPREAD) {
                 var inventoryInfo = containerQueue.peek(); // Per-quick stack, only remove if full.
-                var blockCenter = Vec3d.ofCenter(inventoryInfo.blockPos());
+                var blockCenter = Vec3d.ofCenter(inventoryInfo.sourcePosition());
                 var originalCount = itemStack.getCount();
-                var originalItem = itemStack.getItem();
 
                 // If the inventory can't insert the entire stack, remove it from consideration and repeat
                 // the process with the new inventory.
                 //   * Note: We allow a singular stack to spread across a maximum of MAX_STACK_SPREAD containers.
                 if (!pathFinder.hasNearLineOfSight(blockCenter, player.getPos().add(0, 1.5, 0)) ||
-                    !InventoryUtil.insert(playerInventory, inventoryInfo.inventory(), slot))
+                    !InventoryUtil.insert(playerInventory, inventoryInfo.sourceInventory(), slotId))
                 {
                     containerQueue.poll();
                 }
                 // If the entire stack wasn't inserted, the remaining stack will be used again; otherwise, it will
                 // just be used for deposited items/container calculations.
-                itemStack = playerInventory.getStack(slot);
+                itemStack = playerInventory.getStack(slotId);
                 if (originalCount != itemStack.getCount()) {
-                    var depositCount = originalCount - itemStack.getCount();
-                    itemsDeposited += depositCount;
+                    itemsDeposited += originalCount - itemStack.getCount();
 
-                    depositResultPacket.updateContainerSlots(inventoryInfo.blockPos, slot);
-                    toastResultPacket.updateDepositAmount(originalItem, depositCount, inventoryInfo.blockPos, inventoryInfo.icon);
+                    itemUsageMap.putIfAbsent(item, new Pair<>(0, inventoryInfo.icon()));
+                    associatedInventories.add(inventoryInfo);
                 }
             }
-            containersUsed = depositResultPacket.getDepositedContainerCount();
+
+            if (itemsDeposited > 0) {
+                var itemUsageInfo = itemUsageMap.get(item);
+
+                slotUsageMap.put(slotId, associatedInventories);
+                containersUsed.addAll(associatedInventories);
+                itemUsageInfo.setLeft(itemUsageInfo.getLeft() + itemsDeposited);
+                totalItemsDeposited += itemsDeposited;
+            }
         }
 
         // Sending the accumulated deposit results back to the client.
-        if (itemsDeposited > 0) {
-            QuickStack.LOGGER.info("{} quick stacked {} item{} into {} container{}",
-                player.getName().getString(),
-                itemsDeposited, (itemsDeposited > 1 ? "s" : ""),
-                containersUsed, (containersUsed > 1 ? "s" : ""));
+        if (totalItemsDeposited == 0) return;
 
-            S2CPacketToastResult.send(toastResultPacket, player);
-            S2CPacketDepositResult.send(depositResultPacket, player);
+        var totalContainersUsed = new HashSet<>(slotUsageMap.values()).size();
+        QuickStack.LOGGER.info("{} quick stacked {} item{} into {} container{}",
+            player.getName().getString(),
+            totalItemsDeposited, (totalItemsDeposited > 1 ? "s" : ""),
+            totalContainersUsed, (totalContainersUsed > 1 ? "s" : ""));
 
-            // Play up to a maximum of two sound instances for deposited container counts > 1 to prevent spam.
-            playSound(player, Math.min(containersUsed, 2));
+        S2CPacketDepositResult.send(slotUsageMap, player);
+        S2CPacketToastResult.send(itemUsageMap, totalItemsDeposited, totalContainersUsed, player);
+
+        // Play up to a maximum of two sound instances based on deposited container counts to prevent spam.
+        for (var i = 0; i < Math.min(totalContainersUsed, 2) - 1; ++i) {
+            player.playSound(
+                SoundEvents.BLOCK_BARREL_CLOSE, SoundCategory.BLOCKS, 0.5f, player.world.random.nextFloat() * 0.1f + 0.9f);
         }
     }
-
-    /**
-     * Record containing an inventory, the {@link BlockPos} of its respective block entity, and an {@link ItemStack}
-     * representing said block entity.
-     */
-    private record InventoryInfo(Inventory inventory, BlockPos blockPos, ItemStack icon) { }
 }

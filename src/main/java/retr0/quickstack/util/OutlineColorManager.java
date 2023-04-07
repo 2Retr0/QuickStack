@@ -12,9 +12,11 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import retr0.quickstack.util.InventoryUtil.InventorySource.SourceType;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.BiConsumer;
 
 @Environment(EnvType.CLIENT)
@@ -27,6 +29,7 @@ public final class OutlineColorManager {
     private final MinecraftClient client;
     private final FixedQueue<Integer> colorQueue = new FixedQueue<>(COLORS);
     private final Object2IntMap<BlockPos> blockColorMap = new Object2IntOpenHashMap<>();
+    private final Object2IntMap<UUID> entityColorMap = new Object2IntOpenHashMap<>();
     private final Int2IntOpenHashMap slotColorMap = new Int2IntOpenHashMap();
 
     private long lastStartedTimeMs = -1L;
@@ -57,7 +60,7 @@ public final class OutlineColorManager {
     /**
      * Updates timers for rendering outlines/resetting mappings. Should be called every world tick.
      */
-    public void tick() {
+    private void tick() {
         if (!isRendering) return;
 
         if (waitForScreenClose && client.currentScreen == null)
@@ -85,6 +88,11 @@ public final class OutlineColorManager {
     }
 
 
+    public int getEntityOutlineColor(UUID uuid) {
+        return entityColorMap.getInt(uuid);
+    }
+
+
 
     public int getSlotOutlineColor(int slotId) {
         return slotColorMap.get(slotId);
@@ -92,21 +100,43 @@ public final class OutlineColorManager {
 
 
 
-    public void addMappings(World world, Map<BlockPos, List<Integer>> containerSlotMap) {
+    public void addMappings(World world, Map<Integer, List<InventoryUtil.InventorySource<?>>> slotUsageMap) {
         // If container already has color, get all slots and add color
-        containerSlotMap.forEach((containerPos, associatedSlots) -> {
-            var blockState = world.getBlockState(containerPos);
-            var color = blockColorMap.computeIfAbsent(containerPos, pos -> colorQueue.getNext());
+        slotUsageMap.forEach((slotId, inventorySourceList) -> {
+            inventorySourceList.forEach(inventorySource -> {
+                var sourceType = inventorySource.sourceType();
 
-            // Also include second chest if block is a double chest.
-            //   * Note: getFacing() points in the direction of the second chest for the double chest.
-            if (blockState.getBlock() instanceof ChestBlock && ChestBlock.getDoubleBlockType(blockState) != DoubleBlockProperties.Type.SINGLE)
-                blockColorMap.putIfAbsent(containerPos.add(ChestBlock.getFacing(blockState).getVector()), color);
+                if (sourceType == SourceType.BLOCK_ENTITY) {
+                    var sourcePosition = (BlockPos) inventorySource.source();
+                    var blockState = world.getBlockState(sourcePosition);
+                    var color = blockColorMap.computeIfAbsent(sourcePosition, blockPos -> generateNextColor(slotId));
 
-            // Ensure color is not zero as that is reserved as the null value.
-            associatedSlots.forEach(slot -> slotColorMap.putIfAbsent((int) slot, color == 0 ? color + 1 : color));
+                    // Also include second chest if block is a double chest.
+                    //   * Note: getFacing() points in the direction of the second chest for the double chest.
+                    if (blockState.getBlock() instanceof ChestBlock &&
+                        ChestBlock.getDoubleBlockType(blockState) != DoubleBlockProperties.Type.SINGLE)
+                    {
+                        var neighborChestPosition = sourcePosition.add(ChestBlock.getFacing(blockState).getVector());
+                        blockColorMap.putIfAbsent(neighborChestPosition, color);
+                    }
+                } else if (sourceType == SourceType.INVENTORY_ENTITY) {
+                    var sourceUuid = (UUID) inventorySource.source();
+
+                    entityColorMap.computeIfAbsent(sourceUuid, uuid -> generateNextColor(slotId));
+                }
+            });
         });
         startRendering();
+    }
+
+
+    private int generateNextColor(int slotId) {
+        return slotColorMap.computeIfAbsent(slotId, slot -> {
+            var nextColor = colorQueue.getNext();
+
+            // Ensure color is not zero as that is reserved as the null value.
+            return nextColor == 0 ? nextColor + 1 : nextColor;
+        });
     }
 
 
@@ -133,6 +163,7 @@ public final class OutlineColorManager {
     private void stopRendering() {
         isRendering = false;
         blockColorMap.clear();
+        entityColorMap.clear();
         slotColorMap.clear();
         colorQueue.reset();
     }

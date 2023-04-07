@@ -4,6 +4,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
@@ -13,6 +14,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -126,5 +128,26 @@ public abstract class MixinWorldRenderer {
         var outlineConsumer = outlineProvider.getBuffer(renderLayer);
         cir.setReturnValue(renderLayer.hasCrumbling() ?
             VertexConsumers.union(vertexConsumer, outlineConsumer) : outlineConsumer);
+    }
+
+
+
+    @ModifyArg(
+        method = "render",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/render/WorldRenderer;renderEntity(Lnet/minecraft/entity/Entity;DDDFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;)V"),
+        index = 6)
+    private VertexConsumerProvider outlineEntities(
+        Entity entity, double cameraX, double cameraY, double cameraZ, float tickDelta, MatrixStack matrices,
+        VertexConsumerProvider original)
+    {
+        if (!isRendering) return original;
+
+        var entityColor = OutlineColorManager.getInstance().getEntityOutlineColor(entity.getUuid());
+
+        if (entityColor != 0)
+            return RenderUtil.modifyOutlineProviderColor(outlineProvider, entityColor);
+        return original;
     }
 }
