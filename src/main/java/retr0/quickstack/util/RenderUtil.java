@@ -25,24 +25,6 @@ public final class RenderUtil {
 
 
 
-    /**
-     * Changes the target color of an {@link OutlineVertexConsumerProvider} for a given color.
-     * @param outlineProvider The target {@link OutlineVertexConsumerProvider}.
-     * @param color The 24-bit RGB color to change to.
-     */
-    public static OutlineVertexConsumerProvider modifyOutlineProviderColor(
-        OutlineVertexConsumerProvider outlineProvider, int color)
-    {
-        var r = 0xFF & color >> 16;
-        var g = 0xFF & color >> 8;
-        var b = 0xFF & color;
-        outlineProvider.setColor(r, g, b, 0xFF);
-
-        return outlineProvider;
-    }
-
-
-
     public static void drawBlockModelOutlines(
         MinecraftClient client, MatrixStack matrices, Camera camera, ClientWorld world,
         OutlineVertexConsumerProvider outlineProvider)
@@ -73,7 +55,26 @@ public final class RenderUtil {
 
 
 
+    /**
+     * Changes the target color of an {@link OutlineVertexConsumerProvider} for a given color.
+     * @param outlineProvider The target {@link OutlineVertexConsumerProvider}.
+     * @param color The 24-bit RGB color to change to.
+     */
+    public static OutlineVertexConsumerProvider modifyOutlineProviderColor(
+        OutlineVertexConsumerProvider outlineProvider, int color)
+    {
+        var r = 0xFF & color >> 16;
+        var g = 0xFF & color >> 8;
+        var b = 0xFF & color;
+        outlineProvider.setColor(r, g, b, 0xFF);
+
+        return outlineProvider;
+    }
+
+
+
     public static void drawSlotOutlineColor(MatrixStack matrices, Slot slot) {
+        // TODO: Outline should draw between rendered item and rendered item count. Fixing would require a Mixin.
         var slotColor = OutlineColorManager.getInstance().getSlotOutlineColor(slot.getIndex());
         if (slotColor == 0) return;
 

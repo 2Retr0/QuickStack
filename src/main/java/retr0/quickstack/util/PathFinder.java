@@ -27,6 +27,7 @@ import static net.minecraft.world.RaycastContext.ShapeType.COLLIDER;
 
 public class PathFinder {
     private static final Set<Block> IGNORED_BLOCKS = Set.of(Blocks.CHAIN, Blocks.END_ROD, Blocks.LANTERN, Blocks.LIGHTNING_ROD);
+    // TODO: Fences should be checked to see if they're in a valid state!
     private static final Set<TagKey<Block>> IGNORED_BLOCK_TAGS = Set.of(BlockTags.FENCES, ConventionalBlockTags.CHESTS);
 
     private final ChunkCache chunkCache;

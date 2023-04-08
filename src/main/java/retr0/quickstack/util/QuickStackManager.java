@@ -5,9 +5,9 @@ import net.minecraft.block.DoubleBlockProperties;
 import net.minecraft.block.entity.LootableContainerBlockEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.RideableInventory;
-import net.minecraft.entity.passive.AbstractHorseEntity;
+import net.minecraft.entity.passive.AbstractDonkeyEntity;
 import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.Inventory;
+import net.minecraft.entity.vehicle.VehicleInventory;
 import net.minecraft.inventory.SidedInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -53,54 +53,82 @@ public final class QuickStackManager {
 
 
     /**
-     * Searches for nearby block entities whose class extends {@link LootableContainerBlockEntity} and <em>doesn't</em>
-     * implement {@link SidedInventory} (e.g., 'Container' block entities such as chests, barrels, and dispensers).
-     * Found inventories which still has an active loot table (e.g., unopened naturally-generated chests) are also
-     * disregarded.
-     *
-     * @return A {@code List} containing the found block entities as {@link InventoryInfo}s.
+     * Initiates a quick stack operation on a player's inventory between all chests in the specified radius.
      */
-    public static List<InventoryInfo> findNearbyInventories(World world, BlockPos pos, int radius) {
-        var nearbyInventories = new ArrayList<InventoryInfo>();
-        var mutablePos = new BlockPos.Mutable();
-        var cuboidBlockIterator = new CuboidBlockIterator(
-            pos.getX() - radius, pos.getY() - radius, pos.getZ() - radius,
-            pos.getX() + radius, pos.getY() + radius, pos.getZ() + radius);
+    public void quickStack(ServerPlayerEntity player, int radius, boolean includeHotbar) {
+        var itemContainerMap = generateMappings(player, radius);
+        var pathFinder = new PathFinder(player.getWorld(), player.getBlockPos(), radius);
+        var playerInventory = player.getInventory();
 
-        while (cuboidBlockIterator.step()) {
-            mutablePos.set(cuboidBlockIterator.getX(), cuboidBlockIterator.getY(), cuboidBlockIterator.getZ());
-            var blockEntity = world.getBlockEntity(mutablePos);
+        if (itemContainerMap.isEmpty()) return;
 
-            // Note: container.getLootTableId() is null if the container is player-placed or has been opened by a player.
-            if (blockEntity instanceof AccessorLootableContainerBlockEntity container
-                && !(blockEntity instanceof SidedInventory)
-                && container.getLootTableId() == null)
-            {
-                var blockState = blockEntity.getCachedState();
-                // We add the inventory/double inventory for chest blocks, so long as the chest can be opened and is not
-                // the "second chest" of a double chest (to prevent double counting).
-                if (blockState.getBlock() instanceof ChestBlock
-                    && (ChestBlock.isChestBlocked(world, mutablePos)
-                    || ChestBlock.getDoubleBlockType(blockState) == DoubleBlockProperties.Type.SECOND))
+        // For each item in the player's *main* inventory try to insert the item into the inventory of the associated
+        // queue.
+        int totalItemsDeposited = 0;
+        var slotUsageMap = new HashMap<Integer, List<InventoryInfo>>();
+        var itemUsageMap = new HashMap<Item, Pair<Integer, ItemStack>>();
+        var containersUsed = new HashSet<InventoryInfo>();
+        var startingSlot = includeHotbar ? 0 : PlayerInventory.getHotbarSize();
+        for (var slotId = startingSlot; slotId < PlayerInventory.MAIN_SIZE; ++slotId) {
+            var itemStack = playerInventory.getStack(slotId);
+            var item = itemStack.getItem();
+            var containerQueue = itemContainerMap.get(item);
+            var associatedInventories = new ArrayList<InventoryInfo>(1);
+            int stackSpread = 1, itemsDeposited = 0;
+
+            if (containerQueue == null || CompatItemFavorites.isFavorite(itemStack)) continue;
+
+            while (itemStack.getCount() != 0 && !containerQueue.isEmpty() && stackSpread++ < MAX_STACK_SPREAD) {
+                var inventoryInfo = containerQueue.peek(); // Per-quick stack, only remove if full.
+                var blockCenter = Vec3d.ofCenter(inventoryInfo.sourcePosition());
+                var originalCount = itemStack.getCount();
+
+                // If the inventory can't insert the entire stack, remove it from consideration and repeat
+                // the process with the new inventory.
+                //   * Note: We allow a singular stack to spread across a finite number of chests.
+                if (!pathFinder.hasNearLineOfSight(blockCenter, player.getPos().add(0, 1.5, 0)) ||
+                    !InventoryUtil.insert(playerInventory, inventoryInfo.sourceInventory(), slotId))
                 {
-                    continue;
+                    containerQueue.poll();
                 }
-                nearbyInventories.add(InventoryInfo.create(blockEntity));
+                // If the entire stack wasn't inserted, the remaining stack will be used again; otherwise, it will
+                // just be used for deposited items/container calculations.
+                itemStack = playerInventory.getStack(slotId);
+                if (originalCount != itemStack.getCount()) {
+                    itemsDeposited += originalCount - itemStack.getCount();
+
+                    itemUsageMap.putIfAbsent(item, new Pair<>(0, inventoryInfo.icon()));
+                    associatedInventories.add(inventoryInfo);
+                }
+            }
+
+            if (itemsDeposited > 0) {
+                var itemUsageInfo = itemUsageMap.get(item);
+
+                slotUsageMap.put(slotId, associatedInventories);
+                containersUsed.addAll(associatedInventories);
+                itemUsageInfo.setLeft(itemUsageInfo.getLeft() + itemsDeposited);
+                totalItemsDeposited += itemsDeposited;
             }
         }
 
-        var entitySearchBox = Box.of(pos.toCenterPos(), radius * 2, radius * 2, radius * 2);
-        world.getEntitiesByType(TypeFilter.instanceOf(Entity.class), entitySearchBox, entity -> {
-            return entity instanceof RideableInventory || entity instanceof Inventory;
-        }).forEach(entity -> {
-            if (entity instanceof AbstractHorseEntity) // {
-                nearbyInventories.add(InventoryInfo.create((AbstractHorseEntity) entity));
-            // } else if (entity instanceof Inventory) {
-            //     nearbyInventories.add(InventoryInfo.create((Inventory) entity));
-            // }
-        });
+        if (totalItemsDeposited == 0) return;
 
-        return nearbyInventories;
+        // Process deposit results.
+        var totalContainersUsed = containersUsed.size();
+        QuickStack.LOGGER.info("{} quick stacked {} item{} into {} container{}",
+            player.getName().getString(),
+            totalItemsDeposited, (totalItemsDeposited > 1 ? "s" : ""),
+            totalContainersUsed, (totalContainersUsed > 1 ? "s" : ""));
+
+        S2CPacketDepositResult.send(slotUsageMap, player);
+        S2CPacketToastResult.send(itemUsageMap, totalItemsDeposited, totalContainersUsed, player);
+
+        // Play up to a maximum of three sound instances based on deposited container counts to prevent spam.
+        for (var i = 0; i < Math.min(totalContainersUsed, 3); ++i) {
+            player.playSound(
+                SoundEvents.BLOCK_BARREL_CLOSE, SoundCategory.NEUTRAL, 0.5f, player.world.random.nextFloat() * 0.1f + 0.9f);
+        }
     }
 
 
@@ -140,81 +168,54 @@ public final class QuickStackManager {
 
 
     /**
-     * Initiates a quick stack operation on a player's inventory between all chests in the specified radius.
+     * Searches for nearby block entities whose class extends {@link LootableContainerBlockEntity} and <em>doesn't</em>
+     * implement {@link SidedInventory} (e.g., 'Container' block entities such as chests, barrels, and dispensers).
+     * Found inventories which still has an active loot table (e.g., unopened naturally-generated chests) are also
+     * disregarded.
+     *
+     * @return A {@code List} containing the found block entities as {@link InventoryInfo}s.
      */
-    public void quickStack(ServerPlayerEntity player, int radius, boolean includeHotbar) {
-        var itemContainerMap = generateMappings(player, radius);
-        var pathFinder = new PathFinder(player.getWorld(), player.getBlockPos(), radius);
-        var playerInventory = player.getInventory();
+    public static List<InventoryInfo> findNearbyInventories(World world, BlockPos pos, int radius) {
+        var nearbyInventories = new ArrayList<InventoryInfo>();
+        var mutablePos = new BlockPos.Mutable();
+        var cuboidBlockIterator = new CuboidBlockIterator(
+            pos.getX() - radius, pos.getY() - radius, pos.getZ() - radius,
+            pos.getX() + radius, pos.getY() + radius, pos.getZ() + radius);
 
-        if (itemContainerMap.isEmpty()) return;
+        while (cuboidBlockIterator.step()) {
+            mutablePos.set(cuboidBlockIterator.getX(), cuboidBlockIterator.getY(), cuboidBlockIterator.getZ());
+            var blockEntity = world.getBlockEntity(mutablePos);
 
-        // For each item in the player's *main* inventory try to insert the item into the inventory of the associated
-        // queue.
-        int totalItemsDeposited = 0;
-        var slotUsageMap = new HashMap<Integer, List<InventoryInfo>>();
-        var itemUsageMap = new HashMap<Item, Pair<Integer, ItemStack>>();
-        var containersUsed = new HashSet<InventoryInfo>();
-        var startingSlot = includeHotbar ? 0 : PlayerInventory.getHotbarSize();
-        for (var slotId = startingSlot; slotId < PlayerInventory.MAIN_SIZE; ++slotId) {
-            var itemStack = playerInventory.getStack(slotId);
-            var item = itemStack.getItem();
-            var containerQueue = itemContainerMap.get(item);
-            var associatedInventories = new ArrayList<InventoryInfo>(1);
-            int stackSpread = 1, itemsDeposited = 0;
-
-            if (containerQueue == null || CompatItemFavorites.isFavorite(itemStack)) continue;
-
-            while (itemStack.getCount() != 0 && !containerQueue.isEmpty() && stackSpread++ < MAX_STACK_SPREAD) {
-                var inventoryInfo = containerQueue.peek(); // Per-quick stack, only remove if full.
-                var blockCenter = Vec3d.ofCenter(inventoryInfo.sourcePosition());
-                var originalCount = itemStack.getCount();
-
-                // If the inventory can't insert the entire stack, remove it from consideration and repeat
-                // the process with the new inventory.
-                //   * Note: We allow a singular stack to spread across a maximum of MAX_STACK_SPREAD containers.
-                if (!pathFinder.hasNearLineOfSight(blockCenter, player.getPos().add(0, 1.5, 0)) ||
-                    !InventoryUtil.insert(playerInventory, inventoryInfo.sourceInventory(), slotId))
+            // Note: container.getLootTableId() is null if the container is player-placed or has been opened by a player.
+            if (blockEntity instanceof AccessorLootableContainerBlockEntity container
+                && !(blockEntity instanceof SidedInventory)
+                && container.getLootTableId() == null)
+            {
+                var blockState = blockEntity.getCachedState();
+                // We add the inventory/double inventory for chest blocks, so long as the chest can be opened and is not
+                // the "second chest" of a double chest (to prevent double counting).
+                if (blockState.getBlock() instanceof ChestBlock
+                    && (ChestBlock.isChestBlocked(world, mutablePos)
+                    || ChestBlock.getDoubleBlockType(blockState) == DoubleBlockProperties.Type.SECOND))
                 {
-                    containerQueue.poll();
+                    continue;
                 }
-                // If the entire stack wasn't inserted, the remaining stack will be used again; otherwise, it will
-                // just be used for deposited items/container calculations.
-                itemStack = playerInventory.getStack(slotId);
-                if (originalCount != itemStack.getCount()) {
-                    itemsDeposited += originalCount - itemStack.getCount();
-
-                    itemUsageMap.putIfAbsent(item, new Pair<>(0, inventoryInfo.icon()));
-                    associatedInventories.add(inventoryInfo);
-                }
-            }
-
-            if (itemsDeposited > 0) {
-                var itemUsageInfo = itemUsageMap.get(item);
-
-                slotUsageMap.put(slotId, associatedInventories);
-                containersUsed.addAll(associatedInventories);
-                itemUsageInfo.setLeft(itemUsageInfo.getLeft() + itemsDeposited);
-                totalItemsDeposited += itemsDeposited;
+                nearbyInventories.add(InventoryInfo.create(blockEntity));
             }
         }
 
-        // Sending the accumulated deposit results back to the client.
-        if (totalItemsDeposited == 0) return;
+        // Gather nearby entities with an inventory.
+        var entitySearchBox = Box.of(pos.toCenterPos(), radius * 2, radius * 2, radius * 2);
+        world.getEntitiesByType(TypeFilter.instanceOf(Entity.class), entitySearchBox, entity -> {
+            return entity instanceof RideableInventory || entity instanceof VehicleInventory;
+        }).forEach(entity -> {
+            if (entity instanceof AbstractDonkeyEntity rideableInventory) {
+                nearbyInventories.add(InventoryInfo.create(rideableInventory));
+             } else if (entity instanceof VehicleInventory vehicleInventory) {
+                 nearbyInventories.add(InventoryInfo.create(vehicleInventory));
+             }
+        });
 
-        var totalContainersUsed = new HashSet<>(slotUsageMap.values()).size();
-        QuickStack.LOGGER.info("{} quick stacked {} item{} into {} container{}",
-            player.getName().getString(),
-            totalItemsDeposited, (totalItemsDeposited > 1 ? "s" : ""),
-            totalContainersUsed, (totalContainersUsed > 1 ? "s" : ""));
-
-        S2CPacketDepositResult.send(slotUsageMap, player);
-        S2CPacketToastResult.send(itemUsageMap, totalItemsDeposited, totalContainersUsed, player);
-
-        // Play up to a maximum of two sound instances based on deposited container counts to prevent spam.
-        for (var i = 0; i < Math.min(totalContainersUsed, 2) - 1; ++i) {
-            player.playSound(
-                SoundEvents.BLOCK_BARREL_CLOSE, SoundCategory.BLOCKS, 0.5f, player.world.random.nextFloat() * 0.1f + 0.9f);
-        }
+        return nearbyInventories;
     }
 }

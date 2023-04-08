@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.entity.Entity;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
@@ -13,7 +14,10 @@ import retr0.quickstack.util.InventoryUtil.InventorySource;
 import retr0.quickstack.util.InventoryUtil.InventorySource.SourceType;
 import retr0.quickstack.util.OutlineColorManager;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static retr0.quickstack.QuickStack.MOD_ID;
 
@@ -30,13 +34,14 @@ public class S2CPacketDepositResult {
 
             // Write associated inventory information.
             usageInfoList.forEach(inventoryInfo -> {
-                var sourceType = inventoryInfo.sourceObject().sourceType();
+                var sourceType = inventoryInfo.source().sourceType();
 
                 buf.writeEnumConstant(sourceType);
                 if (sourceType == SourceType.BLOCK_ENTITY)
                     buf.writeBlockPos(inventoryInfo.sourcePosition());
-                else if (sourceType == SourceType.INVENTORY_ENTITY)
-                    buf.writeUuid((UUID) inventoryInfo.sourceObject().source());
+                else if (sourceType == SourceType.INVENTORY_ENTITY) {
+                    buf.writeUuid(((Entity) inventoryInfo.source().instance()).getUuid());
+                }
             });
         }));
         ServerPlayNetworking.send(player, DEPOSIT_RESULT_ID, buf);
@@ -49,11 +54,13 @@ public class S2CPacketDepositResult {
     {
         var slotUsageMap = new HashMap<Integer, List<InventorySource<?>>>();
 
-        for (var i = 0; i < buf.readByte(); ++i) {
+        var slotUsageSize = buf.readByte();
+        for (var i = 0; i < slotUsageSize; ++i) {
             var associatedInventories = new ArrayList<InventorySource<?>>(1);
             var slotId = buf.readInt();
 
-            for (var j = 0; j < buf.readByte(); ++j) {
+            var associatedInventoriesSize = buf.readByte();
+            for (var j = 0; j < associatedInventoriesSize; ++j) {
                 var sourceType = buf.readEnumConstant(SourceType.class);
 
                 if (sourceType == SourceType.BLOCK_ENTITY)

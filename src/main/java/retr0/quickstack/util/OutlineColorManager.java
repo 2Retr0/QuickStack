@@ -51,12 +51,6 @@ public final class OutlineColorManager {
 
 
 
-    public static OutlineColorManager getInstance() {
-        return instance;
-    }
-
-
-
     /**
      * Updates timers for rendering outlines/resetting mappings. Should be called every world tick.
      */
@@ -67,76 +61,6 @@ public final class OutlineColorManager {
             startRendering();
         else if (!waitForScreenClose && Util.getMeasuringTimeMs() - lastStartedTimeMs > DURATION_MS)
             stopRendering();
-    }
-
-
-
-    public boolean isRendering() {
-        return isRendering;
-    }
-
-
-
-    public void forEachBlock(BiConsumer<? super BlockPos, ? super Integer> consumer) {
-        blockColorMap.forEach(consumer);
-    }
-
-
-
-    public int getBlockOutlineColor(BlockPos blockPos) {
-        return blockColorMap.getInt(blockPos);
-    }
-
-
-    public int getEntityOutlineColor(UUID uuid) {
-        return entityColorMap.getInt(uuid);
-    }
-
-
-
-    public int getSlotOutlineColor(int slotId) {
-        return slotColorMap.get(slotId);
-    }
-
-
-
-    public void addMappings(World world, Map<Integer, List<InventoryUtil.InventorySource<?>>> slotUsageMap) {
-        // If container already has color, get all slots and add color
-        slotUsageMap.forEach((slotId, inventorySourceList) -> {
-            inventorySourceList.forEach(inventorySource -> {
-                var sourceType = inventorySource.sourceType();
-
-                if (sourceType == SourceType.BLOCK_ENTITY) {
-                    var sourcePosition = (BlockPos) inventorySource.source();
-                    var blockState = world.getBlockState(sourcePosition);
-                    var color = blockColorMap.computeIfAbsent(sourcePosition, blockPos -> generateNextColor(slotId));
-
-                    // Also include second chest if block is a double chest.
-                    //   * Note: getFacing() points in the direction of the second chest for the double chest.
-                    if (blockState.getBlock() instanceof ChestBlock &&
-                        ChestBlock.getDoubleBlockType(blockState) != DoubleBlockProperties.Type.SINGLE)
-                    {
-                        var neighborChestPosition = sourcePosition.add(ChestBlock.getFacing(blockState).getVector());
-                        blockColorMap.putIfAbsent(neighborChestPosition, color);
-                    }
-                } else if (sourceType == SourceType.INVENTORY_ENTITY) {
-                    var sourceUuid = (UUID) inventorySource.source();
-
-                    entityColorMap.computeIfAbsent(sourceUuid, uuid -> generateNextColor(slotId));
-                }
-            });
-        });
-        startRendering();
-    }
-
-
-    private int generateNextColor(int slotId) {
-        return slotColorMap.computeIfAbsent(slotId, slot -> {
-            var nextColor = colorQueue.getNext();
-
-            // Ensure color is not zero as that is reserved as the null value.
-            return nextColor == 0 ? nextColor + 1 : nextColor;
-        });
     }
 
 
@@ -166,6 +90,75 @@ public final class OutlineColorManager {
         entityColorMap.clear();
         slotColorMap.clear();
         colorQueue.reset();
+    }
+
+
+
+    public static OutlineColorManager getInstance() {
+        return instance;
+    }
+
+
+
+    public boolean isRendering() {
+        return isRendering;
+    }
+
+
+
+    public void forEachBlock(BiConsumer<? super BlockPos, ? super Integer> consumer) {
+        blockColorMap.forEach(consumer);
+    }
+
+
+
+    public int getBlockOutlineColor(BlockPos blockPos) {
+        return blockColorMap.getInt(blockPos);
+    }
+
+
+
+    public int getEntityOutlineColor(UUID uuid) {
+        return entityColorMap.getInt(uuid);
+    }
+
+
+
+    public int getSlotOutlineColor(int slotId) {
+        return slotColorMap.get(slotId);
+    }
+
+
+
+    public void addMappings(World world, Map<Integer, List<InventoryUtil.InventorySource<?>>> slotUsageMap) {
+        // If container already has color, get all slots and add color
+        slotUsageMap.forEach((slotId, inventorySourceList) -> {
+            inventorySourceList.forEach(inventorySource -> {
+                var sourceType = inventorySource.sourceType();
+                var color = -1;
+
+                if (sourceType == SourceType.BLOCK_ENTITY) {
+                    var sourcePosition = (BlockPos) inventorySource.instance();
+                    var blockState = world.getBlockState(sourcePosition);
+
+                    color = blockColorMap.computeIfAbsent(sourcePosition, blockPos -> colorQueue.getNext());
+                    // Also include second chest if block is a double chest.
+                    //   * Note: getFacing() points in the direction of the second chest for the double chest.
+                    if (blockState.getBlock() instanceof ChestBlock &&
+                        ChestBlock.getDoubleBlockType(blockState) != DoubleBlockProperties.Type.SINGLE)
+                    {
+                        var neighborChestPosition = sourcePosition.add(ChestBlock.getFacing(blockState).getVector());
+                        blockColorMap.putIfAbsent(neighborChestPosition, color);
+                    }
+                } else if (sourceType == SourceType.INVENTORY_ENTITY) {
+                    var sourceUuid = (UUID) inventorySource.instance();
+
+                    color = entityColorMap.computeIfAbsent(sourceUuid, uuid -> colorQueue.getNext());
+                }
+                slotColorMap.putIfAbsent((int) slotId, color);
+            });
+        });
+        startRendering();
     }
 
     /**
