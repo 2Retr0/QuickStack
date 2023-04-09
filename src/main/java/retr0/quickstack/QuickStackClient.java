@@ -1,7 +1,6 @@
 package retr0.quickstack;
 
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import retr0.quickstack.config.QuickStackConfig;
 import retr0.quickstack.network.PacketRegistry;
 import retr0.quickstack.util.OutlineColorManager;

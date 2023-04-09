@@ -8,7 +8,7 @@
     "quickstack.dict.chest.plural": "chests",
 
     "quickstack.carrotconfig.title": "QuickStack Configuration!",
-    "quickstack.carrotconfig.title.name": "QuickStack",
+    "quickstack.carrotconfig.title.name": "General",
 
     "quickstack.carrotconfig.allowHotbarQuickStack.name": "Allow Hotbar Quick Stack",
     "quickstack.carrotconfig.allowHotbarQuickStack.tooltip": "Denotes whether items in the hotbar should be quick stacked.",

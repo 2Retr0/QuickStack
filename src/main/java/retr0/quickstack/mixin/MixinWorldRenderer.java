@@ -23,14 +23,35 @@ import retr0.quickstack.util.RenderUtil;
 
 @Mixin(WorldRenderer.class)
 public abstract class MixinWorldRenderer {
-    @Shadow @Final private BufferBuilderStorage bufferBuilders;
-    @Shadow @Final private MinecraftClient client;
-
-    @Shadow private @Nullable ClientWorld world;
-
     @Unique private static boolean isRendering;
     @Unique private static OutlineVertexConsumerProvider outlineProvider;
     @Unique private static int containerColor;
+    @Shadow @Final private BufferBuilderStorage bufferBuilders;
+    @Shadow @Final private MinecraftClient client;
+    @Shadow private @Nullable ClientWorld world;
+
+
+
+    /**
+     * Allows animated block entities in the outline render layer buffer to render with the block crumbling overlay.
+     */
+    @Inject(
+        // Compiler yells at this method descriptor for some reason, but I don't care...
+        method = "method_22986(Lnet/minecraft/client/render/VertexConsumerProvider$Immediate;Lnet/minecraft/client/render/VertexConsumer;Lnet/minecraft/client/render/RenderLayer;)Lnet/minecraft/client/render/VertexConsumer;",
+        at = @At("RETURN"),
+        cancellable = true)
+    private static void unionOutlineConsumer(
+        VertexConsumerProvider.Immediate immediate, VertexConsumer vertexConsumer, RenderLayer renderLayer,
+        CallbackInfoReturnable<VertexConsumer> cir)
+    {
+        if (!isRendering || containerColor == 0) return;
+
+        var outlineConsumer = outlineProvider.getBuffer(renderLayer);
+        cir.setReturnValue(renderLayer.hasCrumbling() ?
+            VertexConsumers.union(vertexConsumer, outlineConsumer) : outlineConsumer);
+    }
+
+
 
     /**
      * Adds additional logic to enable the outline shader if any blocks are set to have an outline. ALso caches the
@@ -103,7 +124,7 @@ public abstract class MixinWorldRenderer {
             target = "Lnet/minecraft/client/util/math/MatrixStack;translate(DDD)V",
             ordinal = 0, shift = At.Shift.AFTER),
         ordinal = 0)
-    private VertexConsumerProvider useOutlineProvider(VertexConsumerProvider original) {
+    private VertexConsumerProvider useOutlineProviderBlockEntities(VertexConsumerProvider original) {
         if (!isRendering || containerColor == 0) return original;
 
         return RenderUtil.modifyOutlineProviderColor(outlineProvider, containerColor);
@@ -112,33 +133,17 @@ public abstract class MixinWorldRenderer {
 
 
     /**
-     * Allows animated block entities in the outline render layer buffer to render with the block crumbling overlay.
+     * Switches the {@link VertexConsumerProvider} used for the current entity to the outline provider. This overrides
+     * the color of the entity if it is already glowing, but does not change whether the entity is <i>marked</i> as
+     * glowing or not.
      */
-    @Inject(
-        // Compiler yells at this method descriptor for some reason, but I don't care...
-        method = "method_22986(Lnet/minecraft/client/render/VertexConsumerProvider$Immediate;Lnet/minecraft/client/render/VertexConsumer;Lnet/minecraft/client/render/RenderLayer;)Lnet/minecraft/client/render/VertexConsumer;",
-        at = @At("RETURN"),
-        cancellable = true)
-    private static void unionOutlineConsumer(
-        VertexConsumerProvider.Immediate immediate, VertexConsumer vertexConsumer, RenderLayer renderLayer,
-        CallbackInfoReturnable<VertexConsumer> cir)
-    {
-        if (!isRendering || containerColor == 0) return;
-
-        var outlineConsumer = outlineProvider.getBuffer(renderLayer);
-        cir.setReturnValue(renderLayer.hasCrumbling() ?
-            VertexConsumers.union(vertexConsumer, outlineConsumer) : outlineConsumer);
-    }
-
-
-
     @ModifyArg(
         method = "render",
         at = @At(
             value = "INVOKE",
             target = "Lnet/minecraft/client/render/WorldRenderer;renderEntity(Lnet/minecraft/entity/Entity;DDDFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;)V"),
         index = 6)
-    private VertexConsumerProvider outlineEntities(
+    private VertexConsumerProvider useOutlineProviderEntities(
         Entity entity, double cameraX, double cameraY, double cameraZ, float tickDelta, MatrixStack matrices,
         VertexConsumerProvider original)
     {

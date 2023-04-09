@@ -44,7 +44,7 @@ public class PathFinder {
      * @see PathFinder#hasNearLineOfSight(Vec3d, Vec3d)
      */
     private boolean hasNearLineOfSight(Vec3d start, Vec3d end, int radius) {
-        var blockPos = new BlockPos((int) start.x, (int) start.y, (int) start.z);
+        var blockPos = new BlockPos(MathHelper.floor(start.x), MathHelper.floor(start.y), MathHelper.floor(start.z));
         var directionToEnd = start.subtract(end); // Vector from start->end centered about the origin.
 
         //*** DIRECTION PRIORITIZATION STEP ***//

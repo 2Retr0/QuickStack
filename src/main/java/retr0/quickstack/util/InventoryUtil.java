@@ -12,6 +12,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import retr0.quickstack.mixin.AccessorAbstractHorseEntity;
 import retr0.quickstack.util.InventoryUtil.InventorySource.SourceType;
 
@@ -125,7 +126,8 @@ public final class InventoryUtil {
 
         public static InventoryInfo create(VehicleInventory source) {
              var inventory = (Inventory) source;
-             var position = new BlockPos((int) source.getPos().x, (int) source.getPos().y, (int) source.getPos().z);
+             var pos3d = source.getPos();
+             var pos3i = new BlockPos(MathHelper.floor(pos3d.x), MathHelper.floor(pos3d.y), MathHelper.floor(pos3d.z));
              var inventorySource = new InventorySource<>(source, SourceType.INVENTORY_ENTITY);
 
              var icon = Items.CHEST_MINECART.getDefaultStack();
@@ -133,7 +135,7 @@ public final class InventoryUtil {
              if (source instanceof BoatEntity boat)
                  icon = boat.asItem().getDefaultStack();
 
-             return new InventoryInfo(inventory, position, inventorySource, icon);
+             return new InventoryInfo(inventory, pos3i, inventorySource, icon);
         }
     }
 

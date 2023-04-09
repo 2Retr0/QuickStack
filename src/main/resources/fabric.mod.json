@@ -5,9 +5,7 @@
 
     "name": "QuickStack",
     "description": "Adds the ability to quick stack to nearby chests!",
-    "authors": [
-        "2Retr0"
-    ],
+    "authors": [ "2Retr0" ],
     "contact": {
         "homepage": "https://github.com/2Retr0/QuickStack",
         "sources": "https://github.com/2Retr0/QuickStack",
@@ -28,7 +26,7 @@
     ],
 
     "depends": {
-        "fabricloader": ">=0.14.9",
+        "fabricloader": "*",
         "fabric-api": "*",
         "minecraft": "~1.19"
     }
