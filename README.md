@@ -39,4 +39,3 @@ Too lazy to spend dozens of hours constructing an automatic item sorter? QuickSt
     - [Vanilla Tweaks](https://vanillatweaks.net/picker/resource-packs/)
     - [xali's Enchanted Books](https://www.curseforge.com/minecraft/texture-packs/xalis-enchanted-books) (personal edit)
     - [xali's Enhanced Vanilla](https://www.curseforge.com/minecraft/texture-packs/xalis-enhanced-vanilla)  
-<br></br>
