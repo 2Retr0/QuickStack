@@ -1,5 +1,5 @@
 # QuickStack
-Download the latest version over at [Modrinth](https://modrinth.com/mod/TravellersToasts)!
+Download the latest version over at [Modrinth](https://modrinth.com/mod/quickstack)!
 
 Too lazy to spend dozens of hours constructing an automatic item sorter? QuickStack is a mod that aims to provide an intuitive way to deposit your inventory to nearby blocks/entities (following an identically named feature from *Terraria*)! This mod also provides further quality-of-life features than one may expect—specifically...
 
