@@ -15,6 +15,12 @@ import retr0.quickstack.util.RenderUtil;
 
 @Mixin(HandledScreen.class)
 public abstract class MixinHandledScreen extends Screen {
+    private MixinHandledScreen(Text title) {
+        super(title);
+    }
+
+
+
     /**
      * Renders a colored outline if the target slot has an assigned color.
      */
@@ -32,6 +38,4 @@ public abstract class MixinHandledScreen extends Screen {
 
         RenderUtil.drawSlotOutlineColor(matrices, slot);
     }
-
-    private MixinHandledScreen(Text title) { super(title); }
 }

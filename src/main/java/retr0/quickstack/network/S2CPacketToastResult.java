@@ -9,12 +9,16 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Pair;
 import retr0.quickstack.QuickStackToast;
 import retr0.quickstack.QuickStackToast.IconPair;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Map;
 
 import static retr0.quickstack.QuickStack.MOD_ID;
 
@@ -59,8 +63,8 @@ public class S2CPacketToastResult {
     public static void receive(
         MinecraftClient client, ClientPlayNetworkHandler handler, PacketByteBuf buf, PacketSender responseSender)
     {
-        var depositCount = buf.readInt();
-        var containerCount = buf.readByte();
+        var totalItemsDeposited = buf.readInt();
+        var totalContainersUsed = buf.readByte();
         var iconMappings = new ArrayList<IconPair>();
 
         var iconMappingsCount = buf.readByte();
@@ -71,6 +75,16 @@ public class S2CPacketToastResult {
             iconMappings.add(new IconPair(itemIcon, containerIcon));
         }
 
-        client.execute(() -> QuickStackToast.show(client.getToastManager(), depositCount, containerCount, iconMappings));
+        client.execute(() -> {
+            QuickStackToast.show(client.getToastManager(), totalItemsDeposited, totalContainersUsed, iconMappings);
+
+            var player = client.player;
+            if (player == null) return;
+            // Play up to a maximum of three sound instances based on deposited container counts to prevent spam.
+            for (var i = 0; i < Math.min(totalContainersUsed, 3); ++i) {
+                player.playSound(
+                    SoundEvents.BLOCK_BARREL_CLOSE, SoundCategory.NEUTRAL, 0.5f, player.world.random.nextFloat() * 0.1f + 0.9f);
+            }
+        });
     }
 }

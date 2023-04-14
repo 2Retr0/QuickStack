@@ -57,14 +57,14 @@ public abstract class MixinWorldRenderer {
      * Adds additional logic to enable the outline shader if any blocks are set to have an outline. ALso caches the
      * outline provider.
      */
-    /* [ 23]    [  3]                         boolean  bl3                                                 YES       */
-    /* [ 24]    [  4]                         boolean  bl4                                               >>YES<<     */
+    /* [ 23]                                        -                                                                */
+    /* [ 24]    [  3]                         boolean  bl4                                               >>YES<<     */
     /* [ 25]    [  0]  VertexConsumerProvider$Immediate  immediate                                           -       */
     @SuppressWarnings("InvalidInjectorMethodSignature")
     @ModifyVariable(
         method = "render",
         at = @At(value = "CONSTANT", args = "stringValue=blockentities", ordinal = 0, shift = At.Shift.BEFORE),
-        ordinal = 4)
+        ordinal = 3)
     private boolean shouldRenderOutline(boolean original) {
         outlineProvider = bufferBuilders.getOutlineVertexConsumers();
         isRendering = OutlineColorManager.getInstance().isRendering();

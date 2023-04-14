@@ -12,8 +12,6 @@ import net.minecraft.inventory.SidedInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.CuboidBlockIterator;
 import net.minecraft.util.Pair;
 import net.minecraft.util.TypeFilter;
@@ -123,12 +121,6 @@ public final class QuickStackManager {
 
         S2CPacketDepositResult.send(slotUsageMap, player);
         S2CPacketToastResult.send(itemUsageMap, totalItemsDeposited, totalContainersUsed, player);
-
-        // Play up to a maximum of three sound instances based on deposited container counts to prevent spam.
-        for (var i = 0; i < Math.min(totalContainersUsed, 3); ++i) {
-            player.playSound(
-                SoundEvents.BLOCK_BARREL_CLOSE, SoundCategory.NEUTRAL, 0.5f, player.world.random.nextFloat() * 0.1f + 0.9f);
-        }
     }
 
 

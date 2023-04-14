@@ -24,6 +24,12 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
 
     @Unique private ButtonWidget quickStackButton;
 
+    private MixinInventoryScreen(PlayerScreenHandler screenHandler, PlayerInventory playerInventory, Text text) {
+        super(screenHandler, playerInventory, text);
+    }
+
+
+
     /**
      * Adds a quick stack button which requests a quick stack upon press.
      */
@@ -62,9 +68,5 @@ public abstract class MixinInventoryScreen extends AbstractInventoryScreen<Playe
             original.onPress(button);
             quickStackButton.setPosition(x, y);
         };
-    }
-
-    private MixinInventoryScreen(PlayerScreenHandler screenHandler, PlayerInventory playerInventory, Text text) {
-        super(screenHandler, playerInventory, text);
     }
 }
