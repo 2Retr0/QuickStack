@@ -5,7 +5,7 @@ Too lazy to spend dozens of hours constructing an automatic item sorter? QuickSt
 
 ## Features
 ![Quick Stack Demo](https://files.catbox.moe/ec8vmt.gif "Quick Stack Demo")  
-**Quick Stacking Items!**—obviously *(Clicking on a new button within your inventory will dump items into related containers!)*
+**Quick Stacking Items!** (obviously) *(Clicking on a new button within your inventory will dump items into related containers!)*
 * Items are *only* stacked into containers which already contain the item. If multiple containers are present, containers are prioritized based on how much of the item they hold.
     * By default, only non-hotbar inventory items will be considered for quick stacking (configurable).
     * Upon completion, an informational toast containing the summary of the quick stack will display cycling through deposited items and their destination containers.
@@ -24,7 +24,7 @@ Too lazy to spend dozens of hours constructing an automatic item sorter? QuickSt
 ![Favorite Item Demo](https://files.catbox.moe/lw0n1w.gif "Favorite Item Demo")  
 **Marking items as favorites to prevent accidental stacking!** *(Another mod of mine, [ItemFavorites](https://modrinth.com/mod/itemfavorites), comes* ***prepackaged*** *in this mod, integrating all the functionality from it!)*
 * The *ItemFavorites* mod also includes other functionality for items marked as favorites—check the related [mod page](https://modrinth.com/mod/itemfavorites) to learn more!
-- ❗*Note: Items can be marked as favorites by clicking on them while* ***holding the left `alt` key*** *(configurable).
+- ❗*Note: Items can be marked as favorites by clicking on them while* ***holding the left `alt` key*** *(configurable).*
 - ❗*Note: As *ItemFavorites* is bundled in, you need not download (and can remove it) if you install this mod!*
 
 ## See Also
