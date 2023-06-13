@@ -27,7 +27,8 @@
 
     "depends": {
         "fabricloader": "*",
-        "fabric-api": "*",
-        "minecraft": "~1.19"
+        "fabric-networking-api-v1": "*",
+        "fabric-lifecycle-events-v1": "*",
+        "fabric-convention-tags-v1": "*"
     }
 }

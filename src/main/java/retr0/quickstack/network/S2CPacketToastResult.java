@@ -82,8 +82,10 @@ public class S2CPacketToastResult {
             if (player == null) return;
             // Play up to a maximum of three sound instances based on deposited container counts to prevent spam.
             for (var i = 0; i < Math.min(totalContainersUsed, 3); ++i) {
+                var volume = 0.5f;
+                var pitch = player.getWorld().random.nextFloat() * 0.1f + 0.9f;
                 player.playSound(
-                    SoundEvents.BLOCK_BARREL_CLOSE, SoundCategory.NEUTRAL, 0.5f, player.world.random.nextFloat() * 0.1f + 0.9f);
+                    SoundEvents.BLOCK_BARREL_CLOSE, SoundCategory.NEUTRAL, volume, pitch);
             }
         });
     }

@@ -74,7 +74,7 @@ public class S2CPacketDepositResult {
         client.execute(() -> {
             if (client.player == null) return;
 
-            OutlineColorManager.getInstance().addMappings(client.player.world, slotUsageMap);
+            OutlineColorManager.getInstance().addMappings(client.player.getWorld(), slotUsageMap);
         });
     }
 }

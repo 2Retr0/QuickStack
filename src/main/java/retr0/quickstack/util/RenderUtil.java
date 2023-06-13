@@ -5,7 +5,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.block.BlockRenderType;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.OutlineVertexConsumerProvider;
 import net.minecraft.client.render.RenderLayer;
@@ -73,7 +73,7 @@ public final class RenderUtil {
 
 
 
-    public static void drawSlotOutlineColor(MatrixStack matrices, Slot slot) {
+    public static void drawSlotOutlineColor(DrawContext context, Slot slot) {
         // TODO: Outline should draw between rendered item and rendered item count. Fixing would require a Mixin.
         var slotColor = OutlineColorManager.getInstance().getSlotOutlineColor(slot.getIndex());
         if (slotColor == 0) return;
@@ -87,15 +87,14 @@ public final class RenderUtil {
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
-        RenderSystem.setShaderTexture(0, SLOT_OUTLINE_TEXTURE);
 
-        // Draw outer slot outline
+        // --- Draw Outer Slot Outline ---
         RenderSystem.setShaderColor(r, g, b, 0.8f);
-        DrawableHelper.drawTexture(matrices, x, y, 0, 0, 16, 16, 16, 32);
+        context.drawTexture(SLOT_OUTLINE_TEXTURE, x, y, 0, 0, 16, 16, 16, 32);
 
-        // Draw inner slot outline
+        // --- Draw Inner Slot Outline ---
         RenderSystem.setShaderColor(r, g, b, 0.4f);
-        DrawableHelper.drawTexture(matrices, x, y, 0, 16, 16, 16, 16, 32);
+        context.drawTexture(SLOT_OUTLINE_TEXTURE, x, y, 0, 16, 16, 16, 16, 32);
 
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         RenderSystem.disableBlend();

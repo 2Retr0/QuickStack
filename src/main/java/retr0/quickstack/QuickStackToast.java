@@ -1,11 +1,8 @@
 package retr0.quickstack;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.gui.DrawableHelper;
-import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.toast.Toast;
 import net.minecraft.client.toast.ToastManager;
-import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 
@@ -29,7 +26,23 @@ public class QuickStackToast implements Toast {
         addDepositResult(depositCount, containerCount, iconMappings);
     }
 
+    public static void show(ToastManager manager, int depositCount, int containerCount, List<IconPair> iconMappings) {
+        var quickStackToast = manager.getToast(QuickStackToast.class, TYPE);
+        if (quickStackToast == null)
+            manager.add(new QuickStackToast(depositCount, containerCount, iconMappings));
+        else
+            quickStackToast.addDepositResult(depositCount, containerCount, iconMappings);
+    }
 
+    private static Text getDescription(int depositCount, int containerCount) {
+        return Text.translatable(MOD_ID + ".toast.description",
+            depositCount, getPluralityTranslation("item", depositCount),
+            containerCount, getPluralityTranslation("chest", containerCount));
+    }
+
+    private static Text getPluralityTranslation(String dictKey, int valueAmount) {
+        return Text.translatable(MOD_ID + ".dict." + dictKey + "." + (valueAmount == 1 ? "singular" : "plural"));
+    }
 
     private void addDepositResult(int depositCount, int containerCount, List<IconPair> iconMappings) {
         this.totalDepositCount += depositCount;
@@ -39,67 +52,37 @@ public class QuickStackToast implements Toast {
         justUpdated = true;
     }
 
-
-
-    public static void show(ToastManager manager, int depositCount, int containerCount, List<IconPair> iconMappings) {
-        var quickStackToast = manager.getToast(QuickStackToast.class, TYPE);
-        if (quickStackToast == null)
-            manager.add(new QuickStackToast(depositCount, containerCount, iconMappings));
-        else
-            quickStackToast.addDepositResult(depositCount, containerCount, iconMappings);
-    }
-
-
-
     @Override
-    public Toast.Visibility draw(MatrixStack matrices, ToastManager manager, long startTime) {
+    public Visibility draw(DrawContext context, ToastManager manager, long startTime) {
         if (justUpdated) {
             lastStartedTimeMs = startTime;
             justUpdated = false;
         }
 
-        if (iconMappings.isEmpty()) return Toast.Visibility.HIDE;
+        if (iconMappings.isEmpty()) return Visibility.HIDE;
 
-        RenderSystem.setShader(GameRenderer::getPositionTexProgram);
-        RenderSystem.setShaderTexture(0, TEXTURE);
-        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        // --- Draw Background ---
+        context.drawTexture(TEXTURE, 0, 0, 0, 32, this.getWidth(), this.getHeight());
 
-        // Draw background
-        DrawableHelper.drawTexture(matrices, 0, 0, 0, 32, this.getWidth(), this.getHeight());
-
-        // Draw description
+        // --- Draw Description ---
         var description = getDescription(totalDepositCount, totalContainerCount);
-        manager.getClient().textRenderer.draw(matrices, HEADER, 30.0f, 7.0f, 0xFF500050);
-        manager.getClient().textRenderer.draw(matrices, description, 30.0f, 18.0f, 0xFF000000);
+        context.drawText(manager.getClient().textRenderer, HEADER, 30, 7, 0xFF500050, false);
+        context.drawText(manager.getClient().textRenderer, description, 30, 18, 0xFF000000, false);
         var iconMapping = iconMappings.get(
             (int)(startTime / Math.max(1L, DURATION_MS / iconMappings.size()) % iconMappings.size()));
 
-        // Draw current container icon
-        matrices.push();
-        matrices.scale(0.6f, 0.6f, 1.0f);
-        RenderSystem.applyModelViewMatrix();
-        manager.getClient().getItemRenderer().renderInGui(matrices, iconMapping.containerIcon(), 3, 3);
-        matrices.pop();
+        // --- Draw Current Container Icon ---
+        context.getMatrices().push();
+        context.getMatrices().scale(0.6f, 0.6f, 1.0f);
+//        RenderSystem.applyModelViewMatrix();
+        context.drawItemWithoutEntity(iconMapping.containerIcon(), 3, 3);
+        context.getMatrices().pop();
 
-        // Draw current item icon
-        RenderSystem.applyModelViewMatrix();
-        manager.getClient().getItemRenderer().renderInGui(matrices, iconMapping.itemIcon(), 8, 8);
+        // --- Draw Current Item Icon ---
+//        RenderSystem.applyModelViewMatrix();
+        context.drawItemWithoutEntity(iconMapping.itemIcon(), 8, 8);
 
         return startTime - lastStartedTimeMs >= DURATION_MS ? Toast.Visibility.HIDE : Toast.Visibility.SHOW;
-    }
-
-
-
-    private static Text getDescription(int depositCount, int containerCount) {
-        return Text.translatable(MOD_ID + ".toast.description",
-            depositCount, getPluralityTranslation("item", depositCount),
-            containerCount, getPluralityTranslation("chest", containerCount));
-    }
-
-
-
-    private static Text getPluralityTranslation(String dictKey, int valueAmount) {
-        return Text.translatable(MOD_ID + ".dict." + dictKey + "." + (valueAmount == 1 ? "singular" : "plural"));
     }
 
     /**
