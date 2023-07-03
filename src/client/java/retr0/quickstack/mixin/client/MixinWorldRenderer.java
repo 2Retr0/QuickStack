@@ -1,4 +1,4 @@
-package retr0.quickstack.mixin;
+package retr0.quickstack.mixin.client;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;

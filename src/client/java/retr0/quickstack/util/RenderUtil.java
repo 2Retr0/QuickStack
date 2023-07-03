@@ -24,7 +24,6 @@ public final class RenderUtil {
     private RenderUtil() { }
 
 
-
     public static void drawBlockModelOutlines(
         MinecraftClient client, MatrixStack matrices, Camera camera, ClientWorld world,
         OutlineVertexConsumerProvider outlineProvider)

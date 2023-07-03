@@ -22,7 +22,14 @@
     },
     "mixins": [
         "quickstack.mixins.json",
-        "quickstack.mixins.sodium.json"
+        {
+            "config": "quickstack.client.mixins.json",
+            "environment": "client"
+        },
+        {
+            "config": "quickstack.client.mixins.sodium.json",
+            "environment": "client"
+        }
     ],
 
     "depends": {

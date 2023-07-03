@@ -1,4 +1,4 @@
-package retr0.quickstack.mixin;
+package retr0.quickstack.mixin.client;
 
 import net.minecraft.client.gui.screen.ingame.AbstractInventoryScreen;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import retr0.quickstack.network.C2SPacketDepositRequest;
+import retr0.quickstack.network.client.C2SPacketDepositRequest;
 
 import static retr0.quickstack.QuickStack.MOD_ID;
 

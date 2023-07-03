@@ -1,0 +1,11 @@
+{
+    "required": true,
+    "package": "retr0.quickstack.mixin.client",
+    "compatibilityLevel": "JAVA_17",
+    "injectors": { "defaultRequire": 1 },
+    "client": [
+        "MixinHandledScreen",
+        "MixinInventoryScreen",
+        "MixinWorldRenderer"
+    ]
+}

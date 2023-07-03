@@ -3,17 +3,10 @@
     "minVersion": "0.8",
     "package": "retr0.quickstack.mixin",
     "compatibilityLevel": "JAVA_17",
-    "injectors": {
-        "defaultRequire": 1
-    },
+    "injectors": { "defaultRequire": 1 },
     "mixins": [
         "AccessorAbstractHorseEntity",
         "AccessorLootableContainerBlockEntity",
         "MixinShapeContext"
-    ],
-    "client": [
-        "MixinHandledScreen",
-        "MixinInventoryScreen",
-        "MixinWorldRenderer"
     ]
 }

@@ -1,7 +1,5 @@
 package retr0.quickstack.network;
 
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.MinecraftServer;
@@ -15,10 +13,6 @@ import static retr0.quickstack.QuickStack.MOD_ID;
 
 public class C2SPacketDepositRequest {
     public static final Identifier DEPOSIT_REQUEST_ID = new Identifier(MOD_ID, "request_quick_stack");
-
-    public static void send() {
-        ClientPlayNetworking.send(DEPOSIT_REQUEST_ID, PacketByteBufs.empty());
-    }
 
     /**
      * Executes a quick stack operation for the sender player.

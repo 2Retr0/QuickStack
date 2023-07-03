@@ -3,8 +3,8 @@ package retr0.quickstack;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.toast.Toast;
 import net.minecraft.client.toast.ToastManager;
-import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
+import retr0.quickstack.util.IconPair;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -84,10 +84,4 @@ public class QuickStackToast implements Toast {
 
         return startTime - lastStartedTimeMs >= DURATION_MS ? Toast.Visibility.HIDE : Toast.Visibility.SHOW;
     }
-
-    /**
-     * Record containing two {@link ItemStack}s, representing a deposited item's icon and its deposited container's icon
-     * respectively.
-     */
-    public record IconPair(ItemStack itemIcon, ItemStack containerIcon) { }
 }
