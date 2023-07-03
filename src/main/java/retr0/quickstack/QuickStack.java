@@ -3,14 +3,12 @@ package retr0.quickstack;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import retr0.quickstack.config.QuickStackConfig;
 import retr0.quickstack.network.PacketRegistry;
 import retr0.quickstack.util.QuickStackManager;
 
 public class QuickStack implements ModInitializer {
     public static final String MOD_ID = "quickstack";
-    // This logger is used to write text to the console and the log file.
-    // It is considered best practice to use your mod id as the logger's name.
-    // That way, it's clear which mod wrote info, warnings, and errors.
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     @Override
@@ -18,7 +16,7 @@ public class QuickStack implements ModInitializer {
         // This code runs as soon as Minecraft is in a mod-load-ready state.
         // However, some things (like resources) may still be uninitialized.
         // Proceed with mild caution.
-        LOGGER.info("Initialized QuickStack!");
+        QuickStackConfig.init(MOD_ID, QuickStackConfig.class);
 
         PacketRegistry.registerC2SPackets();
         QuickStackManager.register();

@@ -74,12 +74,10 @@ public class QuickStackToast implements Toast {
         // --- Draw Current Container Icon ---
         context.getMatrices().push();
         context.getMatrices().scale(0.6f, 0.6f, 1.0f);
-//        RenderSystem.applyModelViewMatrix();
         context.drawItemWithoutEntity(iconMapping.containerIcon(), 3, 3);
         context.getMatrices().pop();
 
         // --- Draw Current Item Icon ---
-//        RenderSystem.applyModelViewMatrix();
         context.drawItemWithoutEntity(iconMapping.itemIcon(), 8, 8);
 
         return startTime - lastStartedTimeMs >= DURATION_MS ? Toast.Visibility.HIDE : Toast.Visibility.SHOW;

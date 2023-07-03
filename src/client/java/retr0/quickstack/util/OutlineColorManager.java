@@ -142,7 +142,7 @@ public final class OutlineColorManager {
                     var blockState = world.getBlockState(sourcePosition);
 
                     color = blockColorMap.computeIfAbsent(sourcePosition, blockPos -> colorQueue.getNext());
-                    // Also include second chest if block is a double chest.
+                    // Also include a second chest if block is a double chest.
                     //   * Note: getFacing() points in the direction of the second chest for the double chest.
                     if (blockState.getBlock() instanceof ChestBlock &&
                         ChestBlock.getDoubleBlockType(blockState) != DoubleBlockProperties.Type.SINGLE)
