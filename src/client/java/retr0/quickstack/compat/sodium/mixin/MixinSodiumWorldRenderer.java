@@ -27,7 +27,7 @@ public abstract class MixinSodiumWorldRenderer {
     /**
      * Caches the outline vertex consumer provider.
      */
-    @Inject(method = "renderTileEntities", at = @At("HEAD"))
+    @Inject(method = "renderBlockEntities(Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/BufferBuilderStorage;Lit/unimi/dsi/fastutil/longs/Long2ObjectMap;Lnet/minecraft/client/render/Camera;F)V", at = @At("HEAD"))
     private void cacheOutlineProvider(
         MatrixStack matrices, BufferBuilderStorage bufferBuilders, Long2ObjectMap<SortedSet<BlockBreakingInfo>> progress,
         Camera camera, float tickDelta, CallbackInfo ci)
@@ -43,12 +43,12 @@ public abstract class MixinSodiumWorldRenderer {
      */
     @SuppressWarnings("InvalidInjectorMethodSignature")
     @ModifyVariable(
-        method = "renderTileEntities",
+        method = "renderBlockEntity",
         at = @At(
             value = "INVOKE_ASSIGN",
             target = "Lnet/minecraft/block/entity/BlockEntity;getPos()Lnet/minecraft/util/math/BlockPos;",
             ordinal = 0))
-    private BlockPos cacheContainerColor(BlockPos original) {
+    private static BlockPos cacheContainerColor(BlockPos original) {
         if (isRendering)
             containerColor = OutlineColorManager.getInstance().getBlockOutlineColor(original);
 
@@ -64,14 +64,14 @@ public abstract class MixinSodiumWorldRenderer {
     /* [ 17]    [  0]                        BlockPos  pos                                                 -         */
     /* [ 18]    [  0]          VertexConsumerProvider  consumer                                          >>YES<<     */
     @ModifyVariable(
-        method = "renderTileEntities",
+        method = "renderBlockEntity",
         at = @At(
             value = "INVOKE",
             target = "Lit/unimi/dsi/fastutil/longs/Long2ObjectMap;get(J)Ljava/lang/Object;",
             shift = At.Shift.AFTER),
         ordinal = 0, remap = false)
-    private VertexConsumerProvider useOutlineProvider(
-        VertexConsumerProvider original, MatrixStack matrices, BufferBuilderStorage bufferBuilders)
+    private static VertexConsumerProvider useOutlineProvider(
+            VertexConsumerProvider original, MatrixStack matrices, BufferBuilderStorage bufferBuilders)
     {
         if (!isRendering || containerColor == 0) return original;
 
@@ -84,7 +84,7 @@ public abstract class MixinSodiumWorldRenderer {
      * Allows animated block entities in the outline render layer buffer to render with the block crumbling overlay.
      */
     @Inject(
-        method = "lambda$renderTileEntities$0",
+        method = "lambda$renderBlockEntity$0",
         at = @At("RETURN"),
         cancellable = true,
         remap = false)
