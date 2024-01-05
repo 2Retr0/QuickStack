@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.2-SNAPSHOT'
+    id 'fabric-loom' version '1.4-SNAPSHOT'
     id 'maven-publish'
 }
 
@@ -47,9 +47,9 @@ dependencies {
     include "maven.modrinth:itemfavorites:${project.itemfavorites_version}"
 
     // --- CarrotConfig ---
-    modCompileOnly "com.github.2Retr0:carrotconfig:1.20-SNAPSHOT"
-    modImplementation "com.github.2Retr0:carrotconfig:1.20-SNAPSHOT"
-    include "com.github.2Retr0:carrotconfig:1.20-SNAPSHOT"
+    modCompileOnly "com.github.2Retr0:carrotconfig:${project.carrotconfig_version}"
+    modImplementation "com.github.2Retr0:carrotconfig:${project.carrotconfig_version}"
+    include "com.github.2Retr0:carrotconfig:${project.carrotconfig_version}"
 
     // --- Dev Environment Dependencies ---
     modLocalRuntime "maven.modrinth:modmenu:${project.modmenu_version}"
