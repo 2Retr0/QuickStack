@@ -8,4 +8,7 @@ public class QuickStackConfig extends CarrotConfig {
 
     @Entry(min = 0)
     public static int containerSearchRadius = 8;
+
+    @Entry
+    public static float containerHighlightDuration = 5.0f;
 }

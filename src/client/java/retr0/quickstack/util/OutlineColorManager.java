@@ -12,6 +12,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import retr0.quickstack.config.QuickStackConfig;
 import retr0.quickstack.util.InventoryUtil.InventorySource.SourceType;
 
 import java.util.List;
@@ -21,7 +22,6 @@ import java.util.function.BiConsumer;
 
 @Environment(EnvType.CLIENT)
 public final class OutlineColorManager {
-    private static final long DURATION_MS = 5000L; // Interval (upon closing the current screen) to render outlines.
     private static final Integer[] COLORS = new Integer[]{ 0xDC315D, 0xE5AB4C, 0x6AD6A1, 0x3C62D5, 0xD34DC0, 0xFFFFFF };
 
     private static OutlineColorManager instance;
@@ -42,7 +42,7 @@ public final class OutlineColorManager {
 
 
 
-    public static void register() {
+    public static void init() {
         if (OutlineColorManager.instance == null) {
             instance = new OutlineColorManager(MinecraftClient.getInstance());
             ClientTickEvents.START_WORLD_TICK.register(clientWorld -> instance.tick());
@@ -59,7 +59,7 @@ public final class OutlineColorManager {
 
         if (waitForScreenClose && client.currentScreen == null)
             startRendering();
-        else if (!waitForScreenClose && Util.getMeasuringTimeMs() - lastStartedTimeMs > DURATION_MS)
+        else if (!waitForScreenClose && Util.getMeasuringTimeMs() - lastStartedTimeMs > QuickStackConfig.containerHighlightDuration * 1000f)
             stopRendering();
     }
 
@@ -132,32 +132,30 @@ public final class OutlineColorManager {
 
     public void addMappings(World world, Map<Integer, List<InventoryUtil.InventorySource<?>>> slotUsageMap) {
         // If container already has color, get all slots and add color
-        slotUsageMap.forEach((slotId, inventorySourceList) -> {
-            inventorySourceList.forEach(inventorySource -> {
-                var sourceType = inventorySource.sourceType();
-                var color = -1;
+        slotUsageMap.forEach((slotId, inventorySourceList) -> inventorySourceList.forEach(inventorySource -> {
+            var sourceType = inventorySource.sourceType();
+            var color = -1;
 
-                if (sourceType == SourceType.BLOCK_ENTITY) {
-                    var sourcePosition = (BlockPos) inventorySource.instance();
-                    var blockState = world.getBlockState(sourcePosition);
+            if (sourceType == SourceType.BLOCK_ENTITY) {
+                var sourcePosition = (BlockPos) inventorySource.instance();
+                var blockState = world.getBlockState(sourcePosition);
 
-                    color = blockColorMap.computeIfAbsent(sourcePosition, blockPos -> colorQueue.getNext());
-                    // Also include a second chest if block is a double chest.
-                    //   * Note: getFacing() points in the direction of the second chest for the double chest.
-                    if (blockState.getBlock() instanceof ChestBlock &&
-                        ChestBlock.getDoubleBlockType(blockState) != DoubleBlockProperties.Type.SINGLE)
-                    {
-                        var neighborChestPosition = sourcePosition.add(ChestBlock.getFacing(blockState).getVector());
-                        blockColorMap.putIfAbsent(neighborChestPosition, color);
-                    }
-                } else if (sourceType == SourceType.INVENTORY_ENTITY) {
-                    var sourceUuid = (UUID) inventorySource.instance();
-
-                    color = entityColorMap.computeIfAbsent(sourceUuid, uuid -> colorQueue.getNext());
+                color = blockColorMap.computeIfAbsent(sourcePosition, blockPos -> colorQueue.getNext());
+                // Also include a second chest if block is a double chest.
+                //   * Note: getFacing() points in the direction of the second chest for the double chest.
+                if (blockState.getBlock() instanceof ChestBlock &&
+                    ChestBlock.getDoubleBlockType(blockState) != DoubleBlockProperties.Type.SINGLE)
+                {
+                    var neighborChestPosition = sourcePosition.add(ChestBlock.getFacing(blockState).getVector());
+                    blockColorMap.putIfAbsent(neighborChestPosition, color);
                 }
-                slotColorMap.putIfAbsent((int) slotId, color);
-            });
-        });
+            } else if (sourceType == SourceType.INVENTORY_ENTITY) {
+                var sourceUuid = (UUID) inventorySource.instance();
+
+                color = entityColorMap.computeIfAbsent(sourceUuid, uuid -> colorQueue.getNext());
+            }
+            slotColorMap.putIfAbsent((int) slotId, color);
+        }));
         startRendering();
     }
 

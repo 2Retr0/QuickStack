@@ -19,6 +19,6 @@ public class QuickStack implements ModInitializer {
         QuickStackConfig.init(MOD_ID, QuickStackConfig.class);
 
         PacketRegistry.registerC2SPackets();
-        QuickStackManager.register();
+        QuickStackManager.init();
     }
 }

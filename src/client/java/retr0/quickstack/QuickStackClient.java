@@ -8,6 +8,6 @@ public class QuickStackClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         PacketRegistry.registerS2CPackets();
-        OutlineColorManager.register();
+        OutlineColorManager.init();
     }
 }

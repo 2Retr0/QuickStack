@@ -14,5 +14,8 @@
     "quickstack.carrotconfig.allowHotbarQuickStack.tooltip": "Denotes whether items in the hotbar should be quick stacked.",
 
     "quickstack.carrotconfig.containerSearchRadius.name": "Container Search Radius",
-    "quickstack.carrotconfig.containerSearchRadius.tooltip": "Denotes the distance (in blocks) to search for containers when quick stacking."
+    "quickstack.carrotconfig.containerSearchRadius.tooltip": "Denotes the distance (in blocks) to search for containers when quick stacking.",
+
+    "quickstack.carrotconfig.containerHighlightDuration.name": "Container Highlight Duration",
+    "quickstack.carrotconfig.containerHighlightDuration.tooltip": "Denotes the duration (in seconds) for which deposited containers are highlighted after being quick stacked."
 }

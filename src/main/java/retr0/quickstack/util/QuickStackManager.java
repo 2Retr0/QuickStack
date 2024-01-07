@@ -36,10 +36,9 @@ public final class QuickStackManager {
 
 
 
-    public static void register() {
-        if (QuickStackManager.instance == null) {
+    public static void init() {
+        if (QuickStackManager.instance == null)
             instance = new QuickStackManager();
-        }
     }
 
 
