@@ -4,6 +4,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.toast.Toast;
 import net.minecraft.client.toast.ToastManager;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import retr0.quickstack.util.IconPair;
 
 import java.util.ArrayList;
@@ -12,6 +13,8 @@ import java.util.List;
 import static retr0.quickstack.QuickStack.MOD_ID;
 
 public class QuickStackToast implements Toast {
+    private static final Identifier TEXTURE = new Identifier("toast/recipe");
+
     private static final long DURATION_MS = 5000L;
     private static final Text HEADER = Text.translatable(MOD_ID + ".toast.header");
 
@@ -62,7 +65,8 @@ public class QuickStackToast implements Toast {
         if (iconMappings.isEmpty()) return Visibility.HIDE;
 
         // --- Draw Background ---
-        context.drawTexture(TEXTURE, 0, 0, 0, 32, this.getWidth(), this.getHeight());
+        // textures/gui/toasts << old identifier
+        context.drawGuiTexture(TEXTURE, 0, 0, this.getWidth(), this.getHeight());
 
         // --- Draw Description ---
         var description = getDescription(totalDepositCount, totalContainerCount);

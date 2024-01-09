@@ -1,0 +1,20 @@
+{
+    "sources": [
+        {
+          "type": "single",
+          "resource": "quickstack:quickstack/button"
+        },
+        {
+          "type": "single",
+          "resource": "quickstack:quickstack/button_highlighted"
+        },
+        {
+          "type": "single",
+          "resource": "quickstack:quickstack/slot_outline_inner"
+        },
+        {
+          "type": "single",
+          "resource": "quickstack:quickstack/slot_outline_outer"
+        }
+    ]
+}

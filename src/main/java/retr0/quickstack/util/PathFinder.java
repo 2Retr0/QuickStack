@@ -3,6 +3,7 @@ package retr0.quickstack.util;
 import net.fabricmc.fabric.api.tag.convention.v1.ConventionalBlockTags;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.ShapeContext;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.Util;
@@ -157,7 +158,7 @@ public class PathFinder {
 
         Function<RaycastContext, Boolean> onMiss = raycastContext -> true; // Runs if all onHit is null.
 
-        return BlockView.raycast(start, end, new RaycastContext(start, end, COLLIDER, WATER, null), onHit, onMiss);
+        return BlockView.raycast(start, end, new RaycastContext(start, end, COLLIDER, WATER, ShapeContext.absent()), onHit, onMiss);
     }
 
 

@@ -19,7 +19,9 @@ import static retr0.quickstack.QuickStack.MOD_ID;
 
 @Environment(EnvType.CLIENT)
 public final class RenderUtil {
-    private static final Identifier SLOT_OUTLINE_TEXTURE = new Identifier(MOD_ID, "textures/gui/slot_outline.png");
+    private static final Identifier OUTLINE_INNER_TEXTURE = new Identifier(MOD_ID, "quickstack/slot_outline_inner");
+    private static final Identifier OUTLINE_OUTER_TEXTURE = new Identifier(MOD_ID, "quickstack/slot_outline_outer");
+
 
     private RenderUtil() { }
 
@@ -88,12 +90,13 @@ public final class RenderUtil {
         RenderSystem.defaultBlendFunc();
 
         // --- Draw Outer Slot Outline ---
-        RenderSystem.setShaderColor(r, g, b, 0.8f);
-        context.drawTexture(SLOT_OUTLINE_TEXTURE, x, y, 0, 0, 16, 16, 16, 32);
+        // Note: Low alpha -> high opacity
+        RenderSystem.setShaderColor(r, g, b, 1f - 0.8f);
+        context.drawGuiTexture(OUTLINE_INNER_TEXTURE, x, y, 16, 16);
 
         // --- Draw Inner Slot Outline ---
-        RenderSystem.setShaderColor(r, g, b, 0.4f);
-        context.drawTexture(SLOT_OUTLINE_TEXTURE, x, y, 0, 16, 16, 16, 16, 32);
+        RenderSystem.setShaderColor(r, g, b, 1f - 0.4f);
+        context.drawGuiTexture(OUTLINE_OUTER_TEXTURE, x, y, 16, 16);
 
         RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
         RenderSystem.disableBlend();
