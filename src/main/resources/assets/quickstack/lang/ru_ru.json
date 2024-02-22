@@ -1,0 +1,21 @@
+{
+    "quickstack.toast.header": "Успешно складировано!",
+    "quickstack.toast.description": "%1$s %2$s \u2192 %3$s %4$s",
+
+    "quickstack.dict.item.singular": "предмет",
+    "quickstack.dict.item.plural": "предметов",
+    "quickstack.dict.chest.singular": "сундук",
+    "quickstack.dict.chest.plural": "сундуков",
+
+    "quickstack.carrotconfig.title": "Настройки QuickStack!",
+    "quickstack.carrotconfig.title.name": "Общие",
+
+    "quickstack.carrotconfig.allowHotbarQuickStack.name": "Разрешить складировать с хотбара",
+    "quickstack.carrotconfig.allowHotbarQuickStack.tooltip": "Определяет должны ли предметы с хотбара быстро складироваться.",
+
+    "quickstack.carrotconfig.containerSearchRadius.name": "Радиус поиска контейнера",
+    "quickstack.carrotconfig.containerSearchRadius.tooltip": "Определяет расстояние (в блоках) для поиска подходящих контейнеров для быстрого складирования.",
+
+    "quickstack.carrotconfig.containerHighlightDuration.name": "Продолжительность выделения контейнера",
+    "quickstack.carrotconfig.containerHighlightDuration.tooltip": "Определяет продолжительность (в секундах), в течение которой контейнеры подсвечиваются после быстрого складывания."
+}
